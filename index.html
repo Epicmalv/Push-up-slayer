@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Push-Up Slayer">
+<meta name="theme-color" content="#333c57">
+<title>Push-Up Slayer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a1c2c;--plum:#5d275d;--red:#b13e53;--orange:#ef7d57;--yellow:#ffcd75;--lime:#a7f070;--green:#38b764;--teal:#257179;
+        --navy:#29366f;--blue:#3b5dc9;--sky:#41a6f6;--cyan:#73eff7;--white:#f4f4f4;--grey:#94b0c2;--slate:#566c86;--dark:#333c57;
+        --bevel:inset -3px -3px 0 rgba(0,0,0,.35),inset 3px 3px 0 rgba(255,255,255,.18)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;border-radius:0}
+  html,body{margin:0;height:100%;background:var(--ink);color:var(--white);font-family:'Pixelify Sans',monospace;font-size:15px;overflow:hidden}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+  .px{font-family:Silkscreen,monospace;text-transform:uppercase;letter-spacing:.5px}
+  #app{max-width:560px;margin:0 auto;height:100%;display:flex;flex-direction:column}
+  header{padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));background:var(--dark);border-bottom:3px solid #0d0e17;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .stat{background:var(--ink);border:2px solid var(--slate);padding:4px 7px;display:flex;align-items:center;gap:6px}
+  .stat canvas{width:20px;height:20px;flex:0 0 auto}
+  .stat .k{font-family:Silkscreen;font-size:9px;color:var(--grey);text-transform:uppercase;line-height:1.1}
+  .stat .v{font-size:17px;font-weight:700;line-height:1.1}
+  main{flex:1;overflow-y:auto}
+  .view{display:none;padding:10px 10px 20px}
+  .view.active{display:block}
+  nav{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--dark);border-top:3px solid #0d0e17;padding:6px 10px;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+  nav button{background:var(--slate);border:3px solid var(--ink);box-shadow:var(--bevel);color:var(--white);padding:9px 0;font-family:Silkscreen;font-size:13px;text-transform:uppercase}
+  nav button.active{background:var(--yellow);color:var(--ink)}
+
+  /* arena */
+  .arena{position:relative;border:3px solid #0d0e17;background:var(--ink)}
+  .arena canvas{display:block;width:100%;aspect-ratio:160/96}
+  .banner{position:absolute;left:0;right:0;top:28%;text-align:center;pointer-events:none;opacity:0;background:rgba(26,28,44,.85);border-top:3px solid var(--yellow);border-bottom:3px solid var(--yellow);padding:6px 0}
+  .banner small{display:block;font-family:Silkscreen;font-size:11px;color:var(--grey);text-transform:uppercase}
+  .banner b{display:block;font-family:Silkscreen;font-size:22px;color:var(--yellow);text-transform:uppercase;text-shadow:2px 2px 0 var(--ink)}
+  .banner.go{animation:banner 2.4s steps(12) forwards}
+  @keyframes banner{0%{opacity:0;transform:scaleY(.2)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+  .plate{display:flex;justify-content:space-between;align-items:baseline;padding:6px 8px 2px;background:var(--dark);border-top:3px solid #0d0e17}
+  .mname{font-family:Silkscreen;font-size:15px;text-transform:uppercase}
+  .arena.boss .mname{color:var(--orange)}
+  .mlvl{font-size:13px;color:var(--grey)}
+  .hpwrap{background:var(--dark);padding:2px 8px 8px}
+  .hpbar{height:16px;background:var(--ink);border:2px solid #0d0e17;position:relative;box-shadow:inset 0 0 0 1px var(--slate)}
+  .hpfill{height:100%;background:var(--red);box-shadow:inset 0 3px 0 rgba(255,255,255,.25);transition:width .12s steps(4)}
+  .hpbar span{position:absolute;inset:0;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;text-shadow:1px 1px 0 var(--ink)}
+  .float{position:absolute;pointer-events:none;font-family:Silkscreen;font-size:18px;animation:fl .8s steps(8) forwards;text-shadow:2px 2px 0 var(--ink);z-index:5;white-space:nowrap}
+  @keyframes fl{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-48px)}}
+  .row{display:flex;gap:6px;margin-top:8px}
+  .chip{flex:1;background:var(--dark);border:3px solid #0d0e17;padding:5px 8px;font-size:12px;color:var(--grey)}
+  .chip b{display:block;font-size:16px;color:var(--white);font-weight:700}
+  .combo b{color:var(--yellow)}
+
+  /* camera */
+  .cam{margin-top:10px;background:var(--dark);border:3px solid #0d0e17}
+  .types{display:flex;gap:5px;overflow-x:auto;padding:8px 8px 4px;scrollbar-width:none}
+  .types::-webkit-scrollbar{display:none}
+  .types button{flex:0 0 auto;border:3px solid var(--ink);background:var(--slate);box-shadow:var(--bevel);color:var(--white);padding:5px 9px;font-family:Silkscreen;font-size:12px;text-transform:uppercase;text-align:center}
+  .types button small{display:block;font-family:'Pixelify Sans';font-size:12px;color:var(--yellow);text-transform:none}
+  .types button.on{background:var(--yellow);color:var(--ink)}
+  .types button.on small{color:var(--plum)}
+  .tip{padding:4px 10px 8px;font-size:13px;color:var(--grey)}
+  .tip b{color:var(--white)}
+  .camview{position:relative;background:#000;aspect-ratio:3/4;max-height:56vh;width:100%;display:none;border-top:3px solid #0d0e17;border-bottom:3px solid #0d0e17}
+  .camview.on{display:block}
+  .camview video,.camview canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;image-rendering:auto}
+  .camview.mirror video,.camview.mirror canvas{transform:scaleX(-1)}
+  .camhud{position:absolute;left:8px;right:30px;top:8px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+  .pill{background:var(--ink);border:2px solid var(--slate);padding:3px 8px;font-family:Silkscreen;font-size:12px}
+  .pill.down{background:var(--green);color:var(--ink);border-color:var(--ink)}
+  .bigcount{font-family:Silkscreen;font-size:40px;text-shadow:3px 3px 0 var(--ink);line-height:1}
+  .side{display:block;font-size:13px;color:var(--yellow)}
+  .depth{position:absolute;right:8px;top:10px;bottom:10px;width:14px;background:var(--ink);border:2px solid var(--white);overflow:hidden}
+  .depth i{position:absolute;left:0;right:0;top:0;height:0;background:var(--lime)}
+  .depth s{position:absolute;left:0;right:0;height:3px;background:var(--white);top:70%}
+  .flash{position:absolute;inset:0;background:rgba(167,240,112,.35);opacity:0;pointer-events:none}
+  .flash.go{animation:flash .3s steps(3)}
+  @keyframes flash{from{opacity:1}to{opacity:0}}
+  #graph{display:none;width:100%;height:60px;background:var(--ink);image-rendering:auto}
+  #graph.on{display:block}
+  .campanel{padding:8px 10px 10px}
+  .status{font-size:15px;min-height:20px;font-weight:600}
+  .status.warn{color:var(--orange)}
+  .status.ok{color:var(--lime)}
+  .btn{width:100%;border:3px solid var(--ink);box-shadow:var(--bevel);padding:12px;font-family:Silkscreen;font-size:16px;text-transform:uppercase;margin-top:8px;color:var(--ink)}
+  .btn.cam{background:var(--sky)}
+  .btn.tap{background:var(--slate);color:var(--grey);font-size:12px;padding:8px}
+  .btn:active,nav button:active,.types button:active,.up button:active{box-shadow:inset 3px 3px 0 rgba(0,0,0,.35);transform:translateY(1px)}
+  .help{font-size:13px;color:var(--grey);line-height:1.45;margin-top:8px}
+  .help b{color:var(--white)}
+  .settings{margin-top:8px;display:grid;gap:5px}
+  .seg{display:flex;gap:4px;align-items:center;font-size:13px;color:var(--grey);flex-wrap:wrap}
+  .seg .lab{width:58px}
+  .seg button{border:2px solid var(--ink);background:var(--slate);color:var(--white);padding:3px 8px;font-family:inherit;font-size:13px}
+  .seg button.on{background:var(--yellow);color:var(--ink)}
+
+  /* forge */
+  .swordcard{background:var(--navy);border:3px solid #0d0e17;box-shadow:var(--bevel);padding:8px 10px;display:flex;gap:10px;align-items:center}
+  .swordcard canvas{width:64px;height:64px;flex:0 0 auto}
+  .swordcard .nm{font-family:Silkscreen;font-size:15px;text-transform:uppercase}
+  .swordcard .ds{font-size:13px;color:var(--grey)}
+  .up{display:flex;align-items:center;gap:10px;background:var(--dark);border:3px solid #0d0e17;padding:8px 10px;margin-top:6px}
+  .up .tx{flex:1;min-width:0}
+  .up .nm{font-family:Silkscreen;font-size:13px;text-transform:uppercase}
+  .up .ds{font-size:13px;color:var(--grey)}
+  .up button{border:3px solid var(--ink);box-shadow:var(--bevel);padding:7px 6px;min-width:84px;font-family:'Pixelify Sans';font-weight:700;font-size:14px;background:var(--green);color:var(--ink)}
+  .up button:disabled{background:var(--slate);color:var(--dark)}
+  .up.forge{background:var(--plum)}
+  .up.forge button{background:var(--yellow)}
+  .up.forge button:disabled{background:var(--slate)}
+  .sec{font-family:Silkscreen;font-size:13px;margin:14px 0 5px;color:var(--yellow);text-transform:uppercase}
+  .list{background:var(--dark);border:3px solid #0d0e17;padding:8px 10px;font-size:15px;line-height:1.7}
+  .list span{float:right;color:var(--yellow)}
+  .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .tot{background:var(--dark);border:3px solid #0d0e17;padding:8px 4px;text-align:center}
+  .tot b{display:block;font-family:Silkscreen;font-size:22px;color:var(--yellow);line-height:1.2}
+  .tot span{font-size:12px;color:var(--grey)}
+  .cal{background:var(--dark);border:3px solid #0d0e17;padding:8px}
+  .calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .calhead b{font-family:Silkscreen;font-size:14px;text-transform:uppercase}
+  .calhead button{background:var(--slate);border:3px solid var(--ink);box-shadow:var(--bevel);color:var(--white);width:36px;height:32px;font-family:Silkscreen;font-size:16px}
+  .calhead button:disabled{opacity:.3}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .calgrid .dow{font-family:Silkscreen;font-size:10px;color:var(--grey);text-align:center;padding-bottom:2px}
+  .calgrid .d{aspect-ratio:1;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #0d0e17;cursor:pointer}
+  .calgrid .d i{font-style:normal;font-size:11px;color:var(--slate);line-height:1}
+  .calgrid .d b{font-size:15px;font-weight:700;line-height:1.15}
+  .calgrid .d.l1{background:var(--teal)}.calgrid .d.l2{background:var(--green)}.calgrid .d.l3{background:var(--lime)}
+  .calgrid .d.has i{color:var(--ink);opacity:.7}
+  .calgrid .d.has b{color:var(--ink)}
+  .calgrid .d.l1 b,.calgrid .d.l1 i{color:var(--white)}
+  .calgrid .d.today{border-color:var(--yellow)}
+  .calgrid .d.sel{border-color:var(--white)}
+  .calgrid .d.future{opacity:.3}
+  .calsum{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--grey);gap:6px;flex-wrap:wrap}
+  .calsum b{color:var(--white)}
+  .dayinfo{margin-top:8px;background:var(--ink);border:2px solid var(--slate);padding:6px 8px;font-size:14px;line-height:1.7}
+  .dayinfo span{float:right;color:var(--yellow)}
+  .danger{background:none;border:0;color:var(--orange);font-family:inherit;text-decoration:underline;font-size:13px;margin-top:14px}
+  #modal{position:fixed;inset:0;background:rgba(26,28,44,.85);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  #modal.show{display:flex}
+  .mbox{background:var(--dark);border:3px solid var(--white);box-shadow:0 0 0 3px var(--ink),6px 6px 0 3px var(--ink);padding:16px;max-width:340px;width:100%;text-align:center}
+  .mbox h3{font-family:Silkscreen;margin:0 0 8px;font-size:18px;text-transform:uppercase;color:var(--yellow)}
+  .mbox p{margin:0 0 14px;line-height:1.45;font-size:15px}
+  .mbtns{display:flex;gap:8px}
+  .mbtns button{flex:1;border:3px solid var(--ink);box-shadow:var(--bevel);padding:9px;font-family:Silkscreen;font-size:14px;text-transform:uppercase}
+  .mok{background:var(--yellow);color:var(--ink)}.mno{background:var(--slate);color:var(--white)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="stat"><canvas class="icon" data-icon="coin" width="8" height="8"></canvas><div><div class="k">Gold</div><div class="v" id="gold">0</div></div></div>
+    <div class="stat"><canvas class="icon" data-icon="sword" width="8" height="8"></canvas><div><div class="k">Damage</div><div class="v" id="dmg">1</div></div></div>
+    <div class="stat"><canvas class="icon" data-icon="heart" width="8" height="8"></canvas><div><div class="k">Push-ups</div><div class="v" id="pu">0</div></div></div>
+  </header>
+
+  <main>
+    <section class="view active" id="v-battle">
+      <div class="arena" id="arena">
+        <canvas id="scene" width="160" height="96"></canvas>
+        <div class="banner" id="banner"><small id="bannerSub"></small><b id="bannerName"></b></div>
+        <div class="plate"><div class="mname" id="mName">Slime</div><div class="mlvl" id="mLvl">Stage 1</div></div>
+        <div class="hpwrap"><div class="hpbar"><div class="hpfill" id="hpFill"></div><span id="hpTxt"></span></div></div>
+      </div>
+      <div class="row">
+        <div class="chip combo">Combo<b id="combo">×1.0</b></div>
+        <div class="chip">Sword spirit<b id="dps">0 /sec</b></div>
+        <div class="chip">Next kill<b id="reward">0 gold</b></div>
+      </div>
+
+      <div class="cam">
+        <div class="types" id="types"></div>
+        <div class="tip" id="tip"></div>
+        <div class="camview" id="camview">
+          <video id="video" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div class="flash" id="flash"></div>
+          <div class="camhud"><div class="bigcount"><span id="camCount">0</span><span class="side" id="sideTxt"></span></div><div class="pill" id="phase">READY</div></div>
+          <div class="depth"><i id="depth"></i><s></s></div>
+        </div>
+        <canvas id="graph" width="560" height="60"></canvas>
+        <div class="campanel">
+          <div class="status" id="status">Pick an exercise, then start the camera.</div>
+          <button class="btn cam" id="camBtn">Start camera</button>
+          <div class="settings">
+            <div class="seg" id="depthSeg"><span class="lab">Depth</span><button data-v="easy">Easy</button><button data-v="normal">Normal</button><button data-v="strict">Strict</button></div>
+            <div class="seg" id="soundSeg"><span class="lab">Sound</span><button data-v="voice">Count out loud</button><button data-v="beep">Beep</button><button data-v="off">Off</button></div>
+            <div class="seg" id="facingSeg"><span class="lab">Camera</span><button data-v="user">Front</button><button data-v="environment">Back</button></div>
+            <div class="seg" id="modelSeg"><span class="lab">Tracker</span><button data-v="full">Accurate</button><button data-v="lite">Fast</button></div>
+            <div class="seg" id="graphSeg"><span class="lab">Graph</span><button data-v="on">Show</button><button data-v="off">Hide</button></div>
+          </div>
+          <div class="help">
+            <b>Setup:</b> phone on the floor, propped up, 1.5–2 m away. Your <b>head, shoulders and hands</b> must be in frame.
+            Start each set with straight arms for a second so it can lock on. A rep counts when you go down past the white line on the side bar and push back up.
+            If reps get missed, try <b>Easy</b> depth. If it counts extra reps, try <b>Strict</b>.
+          </div>
+          <button class="btn tap" id="tapBtn">Tap strike (testing only)</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-forge">
+      <div class="swordcard"><canvas id="swIcon" width="16" height="16"></canvas><div><div class="nm" id="swName"></div><div class="ds" id="swDesc"></div></div></div>
+      <div id="ups"></div>
+    </section>
+
+    <section class="view" id="v-stats">
+      <div class="sec" style="margin-top:4px">TOTALS</div>
+      <div class="totals">
+        <div class="tot"><b id="totPU">0</b><span>Push-ups all time</span></div>
+        <div class="tot"><b id="totDips">0</b><span>Dips all time</span></div>
+        <div class="tot"><b id="totToday">0</b><span>Reps today</span></div>
+      </div>
+      <div class="sec">CALENDAR</div>
+      <div class="cal" id="cal">
+        <div class="calhead"><button id="calPrev">‹</button><b id="calTitle"></b><button id="calNext">›</button></div>
+        <div class="calgrid" id="calGrid"></div>
+        <div class="calsum" id="calSum"></div>
+        <div class="dayinfo" id="dayInfo"></div>
+      </div>
+      <div class="sec">BY TYPE (ALL TIME)</div>
+      <div class="list" id="bytype"></div>
+      <div class="sec">GAME</div>
+      <div class="list" id="alltime"></div>
+      <button class="danger" id="resetBtn">Wipe save and start over</button>
+    </section>
+  </main>
+
+  <nav>
+    <button class="active" data-v="battle">Battle</button>
+    <button data-v="forge">Forge</button>
+    <button data-v="stats">Stats</button>
+  </nav>
+</div>
+<div id="modal"><div class="mbox"><h3 id="mT"></h3><p id="mP"></p><div class="mbtns" id="mB"></div></div></div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const KEY = 'pushupSlayer_v1';
+
+// ---------- game data ----------
+const SPR = {"slime": ["................", "................", "................", "................", ".......kk.......", ".....kkaakk.....", "....kaaccaak....", "...kaaccccaak...", "..kaacaaaacaak..", "..kawwaaaawwak..", ".kaawkaaaakwaak.", ".kaaaaaaaaaaaak.", ".kbaaaakkaaaabk.", ".kbbaaaaaaaabbk.", "..kkbbbbbbbbkk..", "....kkkkkkkk...."], "bat": ["................", "................", "................", "................", "kk....k..k....kk", "kak...kkkk...kak", "kaak.kaaaak.kaak", "kaaakaaaaaakaaak", "kaaaakwaawkaaaak", "kaaaaakaakaaaaak", "kabaaaaaaaaaabak", "kab.kawaawak.bak", "kb...kaaaak...bk", "k.....kaak.....k", ".......kk.......", "................"], "goblin": ["................", ".....kkkkkk.....", "....kaaaaaak....", "k..kaaaaaaaak..k", "kak.kaaaaaak.kak", "kaakawwaawwakaak", ".kaaakkaakkaaak.", "..kaaaaaaaaaak..", "...kaaarraaak...", "....kaayyaak....", "...kkbaaaabkk...", "..kccbbbbbbcck..", "..kccbkkkkbcck..", "..kkbbk..kbbkk..", "...kbbk..kbbk...", "...kkkk..kkkk..."], "skeleton": ["................", "....kkkkkkkk....", "...kwwwwwwwwk...", "..kwwwwwwwwwwk..", "..kwkkkwwkkkwk..", "..kwkkrwwrkkwk..", "..kwwwwkkwwwwk..", "...kwwwwwwwwk...", "...kwkwkkwkwk...", "....kkkkkkkk....", "..kkkkwkkwkkkk..", ".kwwkwkwwkwkwwk.", ".kw.kwkwwkwk.wk.", ".kw.kwwwwwwk.wk.", "....kwkkkkwk....", "....kk....kk...."], "shroom": ["................", ".....kkkkkk.....", "...kkaaaaaakk...", "..kaawwaawwaak..", ".kaawwaaaawwaak.", ".kaaaaawwaaaaak.", "kaawaaaaaaaawaak", "kkkkkkkkkkkkkkkk", "...kcccccccck...", "...kcwkcckwck...", "...kckkcckkck...", "...kcccccccck...", "...kcccrrccck...", "..kkcccccccckk..", "..kcckkcckkcck..", "..kkk..kk..kkk.."], "spider": ["................", "................", "................", "k..............k", ".k...kkkkkk...k.", "..k.kaaaaaak.k..", "...kaaaaaaaak...", "kkkkaarrrraakkkk", "...kaaaaaaaak...", "..kkaaaaaaaakk..", ".k.kbaayyaabk.k.", "k..kbbaaaabbk..k", "..k.kkbbbbkk.k..", ".k...k.kk.k...k.", "k...k......k...k", "................"], "ghost": ["................", ".....kkkkkk.....", "....kaaaaaak....", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kaakkaakkaak..", "..kaakkaakkaak..", "..kaaaaaaaaaak..", "..kaaakkkkaaak..", "..kaaaabbaaaak..", "..kabaabbaabak..", "..kabkabbakbak..", "..kbk.kbbk.kbk..", "..kk...kk...kk..", "................", "................"], "eye": ["................", ".k.....kk.....k.", "..k...k..k...k..", "...kkkkkkkkkk...", "..kaaaaaaaaaak..", ".kaaaawwwwaaaak.", "kaaaawwrrwwaaaak", "kaaaawrkkrwaaaak", "kaaaawrkkrwaaaak", "kaaaawwrrwwaaaak", ".kaaaawwwwaaaak.", ".kbaaaaaaaaaabk.", "..kbbbbbbbbbbk..", "...kkkkkkkkkk...", "..k..k....k..k..", ".k..k......k..k."], "dragon": ["........................", ".k....................k.", ".kk..................kk.", ".kak................kak.", "..kak..............kak..", "..kaak..kkkkkkkk..kaak..", "...kaakkaaaaaaaakkaak...", "...kaaaaaaaaaaaaaaaak...", "...kaaaaaaaaaaaaaaaak...", "....kaayyaaaaaayyaak....", "....kaaykaaaaaakyaak....", "....kaaaaaaaaaaaaaak....", ".....kaaaaaaaaaaaak.....", ".....kaaaaabbaaaaak.....", "......kaaabbbbaaak......", "......kwkwkkkkwkwk......", "......kkwkwkkwkwkk......", ".....kaakbbbbbbkaak.....", ".....kaaakbbbbkaaak.....", "....kaaaaakkkkaaaaak....", "....kbbbbbbbbbbbbbbk....", ".....kkkkkkkkkkkkkk....."], "demon": ["........................", ".kk..................kk.", ".kwk................kwk.", "..kwk..............kwk..", "..kwwk..kkkkkkkk..kwwk..", "...kwwkkaaaaaaaakkwwk...", "....kkaaaaaaaaaaaakk....", ".....kaaaaaaaaaaaak.....", "....kaaaaaaaaaaaaaak....", "....kaayyyaaaayyyaak....", "....kaaykyaaaaykyaak....", "....kaaaaaaaaaaaaaak....", "....kbaaaaaaaaaaaabk....", ".....kbaaaakkaaaabk.....", ".....kbaakwwwwkaabk.....", "......kbaakwwkaabk......", "......kbaaaaaaaabk......", "...kkkkbbaaaaaabbkkkk...", "..kaaaaakbbbbbbkaaaaak..", ".kaabbbaakbbbbkaabbbaak.", ".kaakkkbaakkkkaabkkkaak.", ".kkk...kkk....kkk...kkk."], "lich": ["........................", ".....k.k.k.kk.k.k.k.....", ".....kykykykkykykyk.....", ".....kyyyyyyyyyyyyk.....", "....kkkkkkkkkkkkkkkk....", "....kwwwwwwwwwwwwwwk....", "...kwwwwwwwwwwwwwwwwk...", "...kwwkkkwwwwwwkkkwwk...", "...kwwkrkkwwwwkkrkwwk...", "...kwwkkkwwwwwwkkkwwk...", "....kwwwwwkwwkwwwwwk....", ".....kwwkkkwwkkkwwk.....", ".....kwkwkwkkwkwkwk.....", "......kkkkkkkkkkkk......", "....kkcccccccccccckk....", "...kcccccccccccccccck...", "..kcckcccccccccccckcck..", "..kcck.kcccccccck.kcck..", "..kck..kcccccccck..kck..", "..kk...kcccyyccck...kk..", ".......kcccccccck.......", ".......kkkkkkkkkk......."], "golem": ["........................", ".....kkkkkkkkkkkkkk.....", "....kaaaaaaaaaaaaaak....", "....kaabaaaaaaaabaak....", "....kayyaabaabaayyak....", "....kakyaaaaaaaaykak....", "....kaaaaaaaaaaaaaak....", "..kkkkbbbbbbbbbbbbkkkk..", ".kaaaakaaaaaaaaaakaaaak.", "kaabaakaabaaaabaakaabaak", "kaaaabkaaaaaaaaaakbaaaak", "kaaaakkaaaabbaaaakkaaaak", "kbaak.kaabaaaabaak.kaabk", "kbbak.kaaaaaaaaaak.kabbk", ".kkk..kbaaaaaaaabk..kkk.", "......kbbbkkkkbbbk......", "......kaaak..kaaak......", ".....kaaaak..kaaaak.....", ".....kaabak..kabaak.....", ".....kbbbbk..kbbbbk.....", ".....kkkkkk..kkkkkk.....", "........................"], "sword": ["..............kk", ".............kwk", "............kwck", "...........kwcbk", "..........kwcbk.", ".........kwcbk..", "........kwcbk...", ".......kwcbk....", "..kk..kwcbk.....", "..kgkkwcbk......", "...kggcbk.......", "....kggk........", "...khkggk.......", "..khk..kgk......", ".kpk....kk......", ".kk............."], "lizard": [".......kk.......", "......kook......", ".....koyyok.....", ".....koyyok.....", "....kkokkokk....", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kawkaaaakwak..", "..kakkaaaakkak..", "..kaaaaaaaaaak..", "...kaaakkaaak...", "..kccaaaaaacck..", ".kaccccccccccak.", ".kaccccccccccak.", ".kakkcckkcckkak.", "..k..kk..kk..k.."], "bunny": ["...kk......kk...", "..kcck....kcck..", "..kcbk....kbck..", "..kcbk....kbck..", "..kcbk....kbck..", "...kcbkkkkbck...", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kawkaaaakwak..", "..kakkaaaakkak..", "..kraaaaaaaark..", "...kaaakkaaak...", "..kaaaaaaaaaak..", "..kaaaaaaaaaak..", "..kbaakkkkaabk..", "...kkk....kkk..."], "turtle": ["................", "................", "................", "....kkkkkkkk....", "...kcbccccbck...", "..kcbbbccbbbck..", "..kccccbbcccck..", ".kkbccbccbccbkk.", "kaakkkkkkkkkkaak", "kawkaaaaaaaakwak", "kakkaaaaaaaakkak", ".kaaaaakkaaaaak.", "..kakkkaakkkak..", "..kak..kk..kak..", "...k........k...", "................"], "bee": ["................", "...kk......kk...", "..kwwk....kwwk..", ".kwwwk....kwwwk.", ".kwwk.kkkk.kwwk.", "..kk.kyyyyk.kk..", "....kyyyyyyk....", "...kykkyykkyk...", "...kywkkkkwyk...", "...kyyyyyyyyk...", "...kkkkyykkkk...", "...kyyyyyyyyk...", "...kkkkkkkkkk...", "....kyyyyyyk....", ".....kkkkkk.....", ".......kk......."], "pirate": ["....kkkkkkkk....", "...krrrrrrrrk...", "..krrwrrrrwrrk..", "..krrrrrrrrrrk..", "..kkkkkkkkkkkk..", "..kcccccccccck..", "..kcwkcccckwck..", "..kcccccccccck..", "..kckkkkkkkkck..", "..kcccckkcccck..", "..kbbbbbbbbbbk..", "..kbbkbbbbkbbk..", "...kbbbbbbbbk...", "..kaawaaaawaak..", ".kaaawaaaawaaak.", ".kkkkkkkkkkkkkk."], "crab": ["................", ".kk..........kk.", "kaak........kaak", "kaak........kaak", ".kak........kak.", "..kak..kk..kak..", "...kak.kk.kak...", "..kkaaakkaaakk..", ".kaaaaaaaaaaaak.", "kaaaaaaaaaaaaaak", "kbaaaaakkaaaaabk", ".kbbbbbkkbbbbbk.", ".k.k.k....k.k.k.", "k..k.k....k.k..k", "................", "................"], "octo": ["................", ".....kkkkkk.....", "....kaaaaaak....", "...kaaaaaaaak...", "..kacaaaaaacak..", "..kacaaaaaacak..", "..kaawwkkwwaak..", "..kaawkkkkwaak..", "..kaaaaaaaaaak..", "...kaaaaaaaak...", "..kakakaakakak..", ".kak.kakkak.kak.", ".kak.kakkak.kak.", "..kk.kakkak.kk..", ".....kk..kk.....", "................"], "skelpirate": ["....kkkkkkkk....", "..kkrrrrrrrrkk..", ".krrrrrrrrrrrrk.", "kkkkkkkkkkkkkkkk", "...kwwwwwwwwk...", "..kwwwwwwwwwwk..", "..kwkkkwwkkkwk..", "..kwkkrwwrkkwk..", "..kwwwwkkwwwwk..", "...kwwwwwwwwk...", "...kwkwkkwkwk...", "....kkkkkkkk....", "..kkkkwkkwkkkk..", ".kwwkwkwwkwkwwk.", ".kw.kwkwwkwk.wk.", "....kk....kk...."], "ninja": ["....kkkkkkkk....", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kaaaaaaaaaak..", "..krrrrrrrrrrk..", "..kcccccccccck..", "..kcwkcccckwck..", "..kaaaaaaaaaak..", "..kaaaaaaaaaak..", "...kaaaaaaaak...", "..kkbaaaaaabkk..", ".kaakbaaaabkaak.", ".kaa.kbaabk.aak.", ".kk..kaaaak..kk.", "....kaakkaak....", "....kkk..kkk...."], "frog": ["................", "................", "..kkk......kkk..", ".kwwwk....kwwwk.", ".kwkwk....kwkwk.", ".kakaakkkkaakak.", ".kaaaaaaaaaaaak.", "kaaaaaaaaaaaaaak", "kaaaaaakkaaaaaak", "kakaaaakkaaaakak", ".kaaaaaaaaaaaak.", ".kaccccaaccccak.", "kaaccccccccccaak", "kaakkkkkkkkkkaak", "kkk..........kkk", "................"], "crow": ["................", "....kkkkkkkk....", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kawwkaakwwak..", "..kawkkaakkwak..", "..kaaakyykaaak..", ".kaaakyyyykaaak.", "kaaaaakyykaaaaak", "kaaaaaakkaaaaaak", "kbaaaaaaaaaaaabk", "kbbaaaaaaaaaabbk", ".kbbaaaaaaaabbk.", "..kbbbaaaabbbk..", "...kykkyykkyk...", "...kk.kkkk.kk..."], "fox": ["..k..........k..", "..kk........kk..", "..kak......kak..", "..kaak....kaak..", "..kaaakkkkaaak..", "..kaaaaaaaaaak..", "..kaaaaaaaaaak..", "..kakkaaaakkak..", "..kawkaaaakwak..", ".kcaaaaaaaaaack.", ".kccaaaaaaaacck.", "..kccaakkaacck..", "...kccckkccck...", "....kcckkcck....", "...kkkkkkkkkk...", "................"], "oni": ["..kk........kk..", "..kwk......kwk..", "...kwk....kwk...", "...kwkkkkkkwk...", "...kkaaaaaakk...", "..kaaaaaaaaaak..", "..kaykkaakkyak..", "..kakkkaakkkak..", "..kaaaaaaaaaak..", "..kaaaabbaaaak..", "..kakwkwwkwkak..", "..kakkkkkkkkak..", "..kaaaaaaaaaak..", "...kbbbbbbbbk...", "....kkkkkkkk....", "................"], "lantern": ["......kkkk......", ".....kkkkkk.....", "....kaaaaaak....", "...kaaaaaaaak...", "..kacaaaaaacak..", "..kkkkkkkkkkkk..", "..kacaaaaaacak..", "..kawwaaaawwak..", "..kawkaaaakwak..", "..kkkkkkkkkkkk..", "..kacaarraacak..", "..kaaaaaaaaaak..", "...kaaaaaaaak...", "....kkkkkkkk....", "......kkkk......", ".......kk......."], "robot": [".......kk.......", "......kwwk......", ".....kkkkkk.....", "...kkkkkkkkkk...", "..kcccccccccck..", "..kckkkkkkkkck..", "..kckyykkyykck..", "..kckkkkkkkkck..", "..kcccccccccck..", ".kkkkkkkkkkkkkk.", "kbkaaaaaaaaaakbk", "kbkaawaaaawaakbk", "kbkaaaaaaaaaakbk", ".k.kaaaaaaaak.k.", "...kbkkbbkkbk...", "...kkk.kk.kkk..."], "drone": ["................", "kkkkk......kkkkk", ".ccck......kccc.", "...k........k...", "...kkkkkkkkkk...", "..kaaaaaaaaaak..", ".kaaaaaaaaaaaak.", ".kaakkkkkkkkaak.", ".kaakryyyyrkaak.", ".kaakkkkkkkkaak.", ".kaaaaaaaaaaaak.", "..kbbbbbbbbbbk..", "...kkkkkkkkkk...", "....k..kk..k....", "....k..kk..k....", "................"], "tank": ["................", "................", "................", ".....kkkkkk.....", "....kcccccck....", "....kckkkkck....", "kkkkkckyykckkkkk", "kccccckkkkccccck", ".kkkkcccccckkkk.", ".kaaaaaaaaaaaak.", "kaaaaaaaaaaaaaak", "kbkbkbkbbkbkbkbk", "kbkbkbkbbkbkbkbk", ".kkkkkkkkkkkkkk.", "................", "................"], "bear": ["........................", "..kkk..............kkk..", ".kaaak............kaaak.", ".kabakkkkkkkkkkkkkkabak.", ".kaakaaaaaaaaaaaaaakaak.", "..kaaaaaaaaaaaaaaaaaak..", "..kaaaaaaaaaaaaaaaaaak..", "..kaawwkaaaaaaaakwwaak..", "..kaawkkaaaaaaaakkwaak..", "..kaaaaaaabbbbaaaaaaak..", "..kaaaaaabbkkbbaaaaaak..", "...kaaaaabbkkbbaaaaak...", "...kaaaaaakkkkaaaaaak...", "..kkaaaaaaaaaaaaaaaakk..", ".kaakaaabbbbbbbbaaakaak.", "kaaakaabbbbbbbbbbaakaaak", "kaaakaabbbbbbbbbbaakaaak", "kaaakaabbbbbbbbbbaakaaak", ".kkkkaaabbbbbbbbaaakkkk.", "....kaaaaaaaaaaaaaak....", "....kaaakkkkkkkkaaak....", "....kkkk........kkkk...."], "captain": ["..........kkkk..........", ".......kkkyyyykkk.......", ".....kkaaaaaaaaaakk.....", "...kkaaaaaaaaaaaaaakk...", "..kaaaaaaaaaaaaaaaaaak..", ".kaaaaaaaawwwwaaaaaaaak.", "kkkkkkkkkkkkkkkkkkkkkkkk", "....kcccccckkcccccck....", "....kckkkcccccckkkck....", "....kckwkcccccckwkck....", "....kcccccckkcccccck....", "....kccccckkkkccccck....", "....kbbbbbbbbbbbbbbk....", "....kbbbbbbbbbbbbbbk....", "...kkbbbbbkkkkbbbbbkk...", "..kaakbbbbkrrkbbbbkaak..", ".kaaaakbbkrrrrkbbkaaaak.", ".kaaaaakkrrrrrrkkaaaaak.", ".kayaaaakrrrrrrkaaaayak.", ".kaaaaaakrrrrrrkaaaaaak.", ".kkkkkkkkkkkkkkkkkkkkkk.", "........................"], "ninjaboss": ["........................", ".....kkkkkkkkkkkkkk.....", "....kaaaaaaaaaaaaaak....", "...kaaaaaaaaaaaaaaaak...", "...krrrrrrrrrrrrrrrrk...", "..krrkrrrrrrrrrrrrkrrk..", ".krr.kcccccccccccck.rrk.", ".kr..kcwwkcccckwwck..rk.", ".....kcwkkcccckkwck.....", ".....kaaaaaaaaaaaak.....", ".....kaaaaaaaaaaaak.....", "....kkkaaaaaaaaaakkk....", "...kaakkkaaaaaakkkaak...", "..kaaaakaaaaaaaakaaaak..", "..kaaaaakaaaaaakaaaaak..", "..kaakaaakaaaakaaakaak..", "..kaak.kaaaaaaaak.kaak..", "..kkk..kaaaaaaaak..kkk..", "......kbaaaaaaaabk......", "......kbbaakkaabbk......", ".....kbbbkk..kkbbbk.....", ".....kkkk......kkkk....."], "kitsune": ["k......................k", "kk.....kk......kk.....kk", "kak...kaak....kaak...kak", "kaak.kaaak....kaaak.kaak", ".kaakaaaaakkkkaaaaakaak.", ".kaakaaaaaaaaaaaaaakaak.", "..kakaaaaaaaaaaaaaakak..", "..kakaaaaaaaaaaaaaakak..", "...kakaakkkaakkkaakak...", "...kakaakwkaakwkaakak...", "..kcakaaaaaaaaaaaakack..", ".kccakcaaaaaaaaaackacck.", ".kccakccaaaaaaaacckacck.", "kcckkkcccaakkaaccckkkcck", "kcck..kcccckkcccck..kcck", "kck....kcccccccck....kck", "kck.....kkckkckk.....kck", "kk.......kcccck.......kk", ".........kcccck.........", "........kcccccck........", "........kkkkkkkk........", "........................"], "mech": ["........................", "...kkkkkkkkkkkkkkkkkk...", "..kcccccccckkcccccccck..", "..kckkkkkkkkkkkkkkkkck..", "..kckrrrrrrrrrrrrrrkck..", "..kckkkkkkkkkkkkkkkkck..", "..kcccccccckkcccccccck..", "..kkkkkkkkkkkkkkkkkkkk..", "kkkkkaaaaaaaaaaaaaakkkkk", "kbbbkaaaaaaaaaaaaaakbbbk", "kbcbkaakkkkkkkkkkaakbcbk", "kbcbkaakyyyyyyyykaakbcbk", "kbcbkaakkkkkkkkkkaakbcbk", "kbbbkaaaaaaaaaaaaaakbbbk", "kkkkkaaaaaaaaaaaaaakkkkk", ".kbk.kkkkkkkkkkkkkk.kbk.", ".kbk..kaaaakkaaaak..kbk.", ".kkk..kaaaakkaaaak..kkk.", "......kaaaakkaaaak......", ".....kbbbbbkkbbbbbk.....", ".....kbbbbbkkbbbbbk.....", ".....kkkkkkkkkkkkkk....."], "elf": ["....kkkkkkkk....", "...kbbbbbbbbk...", "..kbbbbbbbbbbk..", "..kbbbaaaabbbk..", "kkkbaaaaaaaabkkk", "kaabawkaakwabaak", ".kkaakkaakkaakk.", "...kaaaaaaaak...", "...kaaarraaak...", "...kkkkkkkkkk...", "..kcccccccccck..", ".kaccyccccyccak.", ".kakcccccccckak.", "..kkcccccccckk..", "...kckkcckkck...", "...kk..kk..kk..."], "fairy": ["................", ".kkk........kkk.", "kwcwk......kwcwk", "kccwck....kcwcck", "kcccckkkkkkcccck", ".kccckbbbbkccck.", ".kcckbaaaabkcck.", "..kcckawwakcck..", ".kcccka..akccck.", "kcccckkaakkcccck", "kccckkcccckkccck", ".kcck.kcck.kcck.", "..kk..kcck..kk..", "......kcck......", ".......kk.......", "................"], "treant": ["...k..kkkk..k...", "..kck.kcck.kck..", "...kckcccckck...", "kk.kcccccccck.kk", "kck.kcccccck.kck", ".kckcccccccckck.", "..kcbbbbbbbbck..", "..kbbbbbbbbbbk..", "..kbkkbbbbkkbk..", "..kbkykbbkykbk..", "..kbbbbbbbbbbk..", "..kbbkkkkkkbbk..", "..kbbbbbbbbbbk..", "..kbbbbbbbbbbk..", ".kkbkkbbbbkkbkk.", "kbbk..kkkk..kbbk"], "unicorn": ["................", "......k..k......", ".....kykkyk.....", ".....kykkyk.....", "..k..kykkyk..k..", ".kak.kkkkkk.kak.", ".kaakaaaaaakaak.", "..kaaaaaaaaaak..", "..kckaaaaaakck..", "..kcwkaaaakwck..", "..kckkaaaakkck..", "...kaaaaaaaak...", "...kaaaaaaaak...", "...kaaarraaak...", "....kaaaaaak....", ".....kkkkkk....."], "babydragon": ["..k..........k..", "..kk........kk..", "..kak.kkkk.kak..", "...kakaaaakak...", "...kaaaaaaaak...", "..kaaaaaaaaaak..", "..kawkaaaakwak..", "..kakkaaaakkak..", "k.kaaaaaaaaaak.k", "kk.kaaayyaaak.kk", "kak.kcckkcck.kak", "kaakkcccccckkaak", ".kbakcccccckabk.", "..kbkaccccakbk..", "...kbkakkakbk...", "....kk.kk.kk...."], "wyvern": ["................", "k..............k", "kk............kk", "kak..........kak", "kaak..kkkk..kaak", "kaaakkaaaakkaaak", "kaaaaaaaaaaaaaak", "kbaaaaayyaaaaabk", "kbbaakwkkwkaabbk", ".kbbkaaaaaakbbk.", "..kbkaaaaaakbk..", "...kkaccccakk...", "....kaccccak....", "....kakcckak....", ".....kkkkkk.....", "................"], "egg": ["................", "................", ".....kkkkkk.....", "....kcccccck....", "...kcccwwccck...", "...kcawwwwack...", "..kcccwwwwccck..", "..kacccaacccak..", "..kcccckkcccck..", "..kcckkcckkcck..", "..kcckwkkwkcck..", "..kcccccccccck..", "..kccccaacccck..", "...kcccccccck...", "....kkkkkkkk....", "................"], "griffin": ["................", ".....kkkkkk.....", "....kwwwwwwk....", "...kwwwwwwwwk...", "...kwkkwwkkwk...", "..kkwkykkykwkk..", ".kaakwkyykwkaak.", "kaaaakkkkkkaaaak", "kaaaacckkccaaaak", "kbaaakcccckaaabk", "kbbakcccccckabbk", ".kbkcccccccckbk.", "..kkccckkccckk..", "...kkckcckckk...", "....kk.kk.kk....", "................"], "harpy": ["................", "....kkkkkkkk....", "k..kbbbbbbbbk..k", "kk.kbaaaaaabk.kk", "kak.kawkkwak.kak", "kaakkakkkkakkaak", "kaaaakaaaakaaaak", "kaaaakcccckaaaak", "kbaaakcccckaaabk", "kbbakkcccckkabbk", ".kbk.kcccck.kbk.", "..kk.kcccck.kk..", "....kykyykyk....", "....kk.kk.kk....", "................", "................"], "phoenix": ["...k........k...", "...kyk.kk.kyk...", "....kykkkkyk....", "....kykyykyk....", ".....kyyyyk.....", "....kooooook....", "...kkowkkwokk...", "k.koookkkkoook.k", "kkooooyyyyooookk", "koooooyyyyoooook", "kyoookyyyykoooyk", ".kyokoykkyokoyk.", "..kkooyyyyookk..", "....kyykkyyk....", "....kyk..kyk....", ".....k....k....."], "cloud": ["................", "................", "................", ".....kkkkkk.....", "...kkwwwwwwkk...", "..kwwwwwwwwwwk..", ".kwwwwwwwwwwwwk.", ".kwwkwwwwwwkwwk.", "kwwwkkwwwwkkwwwk", "kwwwwwwwwwwwwwwk", "kwwwwwkkkkwwwwwk", "kcwwwwwwwwwwwwck", ".kcccccccccccck.", "..kkkkkkkkkkkk..", "................", "................"], "elfqueen": [".......k.k.kk.k.k.......", ".......kykykkykyk.......", "......kkyyyyyyyykk......", ".....kbbbbbbbbbbbbk.....", "....kbbbbbbbbbbbbbbk....", "....kbbbaaaaaaaabbbk....", ".kk.kbbaaaaaaaaaabbk.kk.", ".kakkbaaaaaaaaaaaabkkak.", "..kaabaawkaaaakwaabaak..", "...kkbaakkaaaakkaabkk...", "....kbaaaaaaaaaaaabk....", "....kbbaaaakkaaaabbk....", "....kbbkaaaaaaaakbbk....", "...kbbbkkkkkkkkkkbbbk...", "...kbbkcccccccccckbbk...", "..kbbkcccccccccccckbbk..", "..kbbkcccyccccyccckbbk..", "..kbkcccccccccccccckbk..", "...kkcccccccccccccckk...", "....kcccccccccccccck....", "...kcccccccccccccccck...", "...kkkkkkkkkkkkkkkkkk..."], "hydra": ["........................", ".k.......kk..kk.......k.", "kak.....kaakkaak.....kak", "kaak....kaaaaaak....kaak", "kawk....kawkkwak....kwak", "kkaak...kaaaaaak...kaakk", ".kaak...kaayyaak...kaak.", "..kaak..kaaaaaak..kaak..", "..kaak.kaaakkaaak.kaak..", "...kaakkaak..kaakkaak...", "...kaaakaak..kaakaaak...", "....kaaaaakkkkaaaaak....", "....kaaaaaaaaaaaaaak....", "...kaaaaaaaaaaaaaaaak...", "..kaaaaaaaccccaaaaaaak..", "..kaaaaaaccccccaaaaaak..", ".kaaaaaaccccccccaaaaaak.", ".kaaaaaaccccccccaaaaaak.", ".kbaaaaaccccccccaaaaabk.", ".kbbaaaaaccccccaaaaabbk.", ".kkkbbbbbbbbbbbbbbbbkkk.", "...kkkkkkkkkkkkkkkkkk..."], "thunderbird": ["........................", "...........kk...........", "..........kyyk..........", ".........kykkyk.........", "k.......kyk..kyk.......k", "kk.....kkkkkkkkkk.....kk", "kak...kaaaaaaaaaak...kak", "kaak.kaaaaaaaaaaaak.kaak", "kaaakaaawwkaakwwaaakaaak", "kaaaaaaawkkaakkwaaaaaaak", "kbaaaaaakkkyykkkaaaaaabk", "kbbaaaaaakyyyykaaaaaabbk", ".kbbaaaaaakyykaaaaaabbk.", ".kbbbaaaaaakkaaaaaabbbk.", "..kbbbaaaccccccaaabbbk..", "...kbbbaccccccccabbbk...", "....kkbaccccccccabkk....", "......kaccccccccak......", "......kkcccccccckk......", "......kyk.kkkk.kyk......", ".....kyk..kyyk..kyk.....", ".....kk...kkkk...kk....."]};
+const ICONS = {"coin": ["..kkkk..", ".kyyyyk.", "kywyyyok", "kyyyyyok", "kyyyyyok", "kyyyyook", ".kooook.", "..kkkk.."], "sword": ["......kk", ".....kwk", "....kwk.", "kk.kwk..", ".kkwk...", "..kk....", ".kyk....", "kk......"], "heart": [".kk..kk.", "krrkkrrk", "krwrrrrk", "krrrrrrk", ".krrrrk.", "..krrk..", "...kk...", "........"]};
+// sweetie-16 palette
+const C = { ink:'#1a1c2c', plum:'#5d275d', red:'#b13e53', orange:'#ef7d57', yellow:'#ffcd75', lime:'#a7f070', green:'#38b764', teal:'#257179',
+  navy:'#29366f', blue:'#3b5dc9', sky:'#41a6f6', cyan:'#73eff7', white:'#f4f4f4', grey:'#94b0c2', slate:'#566c86', dark:'#333c57' };
+const BASEPAL = { k: C.ink, w: C.white, r: C.red, y: C.yellow, o: C.orange };
+// Worlds: 9 enemies + 1 boss each. [name, sprite, palette overrides]
+const WORLDS = [
+  { name:'Critter Meadow', bg:'meadow', enemies:[
+      ['Ember Lizard','lizard',{a:C.orange,b:C.red,c:C.yellow}], ['Leaf Bunny','bunny',{a:C.white,b:C.green,c:C.lime}],
+      ['Shell Turtle','turtle',{a:C.sky,b:C.teal,c:C.green}], ['Buzz Bee','bee',{a:C.yellow,b:C.orange,c:C.white}],
+      ['Meadow Slime','slime',{a:C.green,b:C.teal,c:C.lime}], ['Frost Lizard','lizard',{a:C.sky,b:C.blue,c:C.white,o:C.cyan,y:C.white}],
+      ['Moss Turtle','turtle',{a:C.green,b:C.teal,c:C.lime}], ['Dusk Bunny','bunny',{a:C.grey,b:C.plum,c:C.red}],
+      ['Queen Bee','bee',{a:C.orange,b:C.red,c:C.yellow}] ],
+    bosses:[['Thornback Bear','bear',{a:C.orange,b:C.red,c:C.yellow}], ['Frost Bear','bear',{a:C.grey,b:C.slate,c:C.white}]] },
+  { name:'Enchanted Forest', bg:'forest', enemies:[
+      ['Wood Elf','elf',{a:C.yellow,b:C.lime,c:C.green}], ['Pixie','fairy',{a:C.yellow,b:C.orange,c:C.cyan}],
+      ['Sapling Treant','treant',{a:C.green,b:C.red,c:C.lime}], ['Unicorn','unicorn',{a:C.white,b:C.grey,c:C.sky,y:C.yellow}],
+      ['Moss Slime','slime',{a:C.teal,b:C.navy,c:C.green}], ['Elf Archer','elf',{a:C.yellow,b:C.orange,c:C.teal}],
+      ['Moon Fairy','fairy',{a:C.white,b:C.sky,c:C.lime}], ['Night Unicorn','unicorn',{a:C.dark,b:C.ink,c:C.plum,y:C.cyan}],
+      ['Elder Treant','treant',{a:C.teal,b:C.plum,c:C.green}] ],
+    bosses:[['Elf Queen','elfqueen',{a:C.yellow,b:C.white,c:C.green}], ['Dark Elf Queen','elfqueen',{a:C.grey,b:C.ink,c:C.plum,y:C.red}]] },
+  { name:'Pirate Seas', bg:'pirate', enemies:[
+      ['Deckhand','pirate',{a:C.orange,b:C.navy,c:C.yellow}], ['Snapper Crab','crab',{a:C.red,b:C.plum,c:C.orange}],
+      ['Ink Octopus','octo',{a:C.plum,b:C.dark,c:C.red}], ['Bone Buccaneer','skelpirate',{}],
+      ['Sea Slime','slime',{a:C.sky,b:C.blue,c:C.cyan}], ['Gunner','pirate',{a:C.red,b:C.dark,c:C.orange,r:C.navy}],
+      ['King Crab','crab',{a:C.orange,b:C.red,c:C.yellow}], ['Reef Octopus','octo',{a:C.teal,b:C.navy,c:C.cyan}],
+      ['Cursed Buccaneer','skelpirate',{w:C.lime,r:C.plum}] ],
+    bosses:[['Captain Saltjaw','captain',{a:C.navy,b:C.red,c:C.yellow}], ['Ghost Captain','captain',{a:C.dark,b:C.teal,c:C.cyan}]] },
+  { name:'Ninja Village', bg:'ninja', enemies:[
+      ['Shadow Ninja','ninja',{a:C.dark,b:C.ink,c:C.yellow}], ['Toad Ninja','frog',{a:C.green,b:C.teal,c:C.lime}],
+      ['Crow Tengu','crow',{a:C.dark,b:C.navy,c:C.grey}], ['Night Bat','bat',{a:C.navy,b:C.ink,c:C.grey}],
+      ['Red Ninja','ninja',{a:C.red,b:C.plum,c:C.yellow,r:C.ink}], ['Poison Frog','frog',{a:C.plum,b:C.navy,c:C.orange}],
+      ['Storm Crow','crow',{a:C.navy,b:C.ink,c:C.sky}], ['Smoke Spirit','ghost',{a:C.slate,b:C.dark,c:C.grey}],
+      ['Gold Ninja','ninja',{a:C.orange,b:C.red,c:C.yellow,r:C.ink}] ],
+    bosses:[['Master Kage','ninjaboss',{a:C.dark,b:C.ink,c:C.yellow}], ['Crimson Kage','ninjaboss',{a:C.red,b:C.plum,c:C.yellow,r:C.ink}]] },
+  { name:'Sky Realm', bg:'sky', enemies:[
+      ['Cloud Puff','cloud',{c:C.grey}], ['Harpy','harpy',{a:C.slate,b:C.plum,c:C.grey}],
+      ['Griffin','griffin',{a:C.orange,b:C.red,c:C.yellow}], ['Pegasus','unicorn',{a:C.white,b:C.grey,c:C.sky,y:C.white}],
+      ['Phoenix Chick','phoenix',{}], ['Storm Cloud','cloud',{w:C.slate,c:C.dark,k:C.ink}],
+      ['Night Harpy','harpy',{a:C.navy,b:C.ink,c:C.plum}], ['Golden Griffin','griffin',{a:C.yellow,b:C.orange,c:C.white}],
+      ['Thunder Cloud','cloud',{w:C.grey,c:C.yellow}] ],
+    bosses:[['Thunderbird','thunderbird',{a:C.sky,b:C.navy,c:C.yellow}], ['Storm Phoenix','thunderbird',{a:C.red,b:C.plum,c:C.orange}]] },
+  { name:'Spirit Shrine', bg:'shrine', enemies:[
+      ['Fox Spirit','fox',{a:C.orange,b:C.red,c:C.white}], ['Oni Mask','oni',{a:C.red,b:C.plum,c:C.yellow}],
+      ['Paper Lantern','lantern',{a:C.orange,b:C.red,c:C.yellow}], ['Shrine Ghost','ghost',{a:C.white,b:C.grey,c:C.white}],
+      ['Blue Oni','oni',{a:C.blue,b:C.navy,c:C.yellow}], ['Silver Fox','fox',{a:C.grey,b:C.slate,c:C.white}],
+      ['Ghost Lantern','lantern',{a:C.sky,b:C.blue,c:C.cyan}], ['Spore Shroom','shroom',{a:C.red,b:C.plum,c:C.yellow}],
+      ['Shadow Fox','fox',{a:C.dark,b:C.ink,c:C.red,w:C.orange}] ],
+    bosses:[['Nine-Tail Kitsune','kitsune',{a:C.white,b:C.grey,c:C.orange}], ['Dark Kitsune','kitsune',{a:C.plum,b:C.navy,c:C.red}]] },
+  { name:'Mecha City', bg:'mecha', enemies:[
+      ['Patrol Bot','robot',{a:C.grey,b:C.slate,c:C.sky}], ['Scout Drone','drone',{a:C.slate,b:C.dark,c:C.cyan}],
+      ['Mini Tank','tank',{a:C.green,b:C.teal,c:C.grey}], ['Sentry Eye','eye',{a:C.grey,b:C.slate,c:C.sky}],
+      ['Glitch Slime','slime',{a:C.lime,b:C.teal,c:C.cyan}], ['Red Bot','robot',{a:C.red,b:C.plum,c:C.orange}],
+      ['Bomber Drone','drone',{a:C.orange,b:C.red,c:C.yellow}], ['Heavy Tank','tank',{a:C.slate,b:C.dark,c:C.grey}],
+      ['Gold Bot','robot',{a:C.yellow,b:C.orange,c:C.white}] ],
+    bosses:[['Omega Mech','mech',{a:C.slate,b:C.dark,c:C.grey}], ['Inferno Mech','mech',{a:C.red,b:C.plum,c:C.orange}]] },
+  { name:'Dragon Peaks', bg:'peaks', enemies:[
+      ['Baby Dragon','babydragon',{a:C.green,b:C.teal,c:C.yellow}], ['Dragon Egg','egg',{a:C.red,b:C.plum,c:C.yellow}],
+      ['Wyvern','wyvern',{a:C.plum,b:C.dark,c:C.red}], ['Fire Salamander','lizard',{a:C.red,b:C.plum,c:C.orange}],
+      ['Red Whelp','babydragon',{a:C.red,b:C.plum,c:C.orange}], ['Frost Wyvern','wyvern',{a:C.sky,b:C.blue,c:C.white}],
+      ['Phoenix','phoenix',{o:C.orange,y:C.yellow,r:C.red}], ['Golden Egg','egg',{a:C.yellow,b:C.orange,c:C.white}],
+      ['Shadow Whelp','babydragon',{a:C.dark,b:C.ink,c:C.plum}] ],
+    bosses:[['Hydra','hydra',{a:C.green,b:C.teal,c:C.lime}], ['Elder Dragon','dragon',{a:C.yellow,b:C.orange,c:C.white}],
+            ['Bone Dragon','dragon',{a:C.grey,b:C.slate,c:C.white,y:C.red}]] },
+  { name:'Dark Dungeon', bg:'dungeon', enemies:[
+      ['Cave Bat','bat',{a:C.plum,b:C.dark,c:C.grey}], ['Goblin','goblin',{a:C.green,b:C.slate,c:C.grey}],
+      ['Skeleton','skeleton',{}], ['Giant Spider','spider',{a:C.dark,b:C.ink,c:C.slate}],
+      ['Wraith','ghost',{a:C.lime,b:C.green,c:C.white}], ['Watcher','eye',{a:C.orange,b:C.red,c:C.yellow}],
+      ['Troll','goblin',{a:C.slate,b:C.dark,c:C.grey}], ['Bone Knight','skeleton',{w:C.grey,r:C.sky}],
+      ['Magma Slime','slime',{a:C.orange,b:C.red,c:C.yellow}] ],
+    bosses:[['Red Dragon','dragon',{a:C.red,b:C.plum,c:C.orange}], ['Demon Lord','demon',{a:C.red,b:C.plum,c:C.orange}],
+            ['Lich King','lich',{a:C.grey,b:C.slate,c:C.plum}], ['Stone Golem','golem',{a:C.slate,b:C.dark,c:C.grey}]] },
+];
+const LAP_NAMES = ['', 'Elite ', 'Ancient ', 'Mythic ', 'Legendary ', 'Godly '];
+const FLYING = new Set(['bat','ghost','eye','drone','lantern','bee','fairy','harpy','phoenix','cloud','wyvern']);
+// Each lap recolours monsters so loops look new
+const RING = [C.red, C.orange, C.yellow, C.lime, C.green, C.teal, C.sky, C.blue, C.navy, C.plum];
+function lapPal(pal, lap) {
+  if (!lap) return pal; const out = Object.assign({}, pal);
+  for (const key of ['a', 'b', 'c']) { const i = RING.indexOf(out[key]); if (i >= 0) out[key] = RING[(i + lap * 3) % RING.length]; }
+  return out;
+}
+// [name, palette] blade c, highlight w, shade b, guard g, handle h, pommel p
+const SWORDS = [
+  ['Wooden Stick',   {c:C.orange,w:C.yellow,b:C.red,g:C.red,h:C.plum,p:C.red}],
+  ['Training Sword', {c:C.slate,w:C.grey,b:C.dark,g:C.slate,h:C.plum,p:C.slate}],
+  ['Rusty Blade',    {c:C.orange,w:C.grey,b:C.red,g:C.slate,h:C.plum,p:C.slate}],
+  ['Iron Sword',     {c:C.grey,w:C.white,b:C.slate,g:C.slate,h:C.plum,p:C.slate}],
+  ['Steel Sword',    {c:C.white,w:C.white,b:C.grey,g:C.grey,h:C.navy,p:C.grey}],
+  ['Knight\'s Blade', {c:C.grey,w:C.white,b:C.slate,g:C.yellow,h:C.blue,p:C.yellow}],
+  ['Flame Sword',    {c:C.orange,w:C.yellow,b:C.red,g:C.red,h:C.ink,p:C.orange}],
+  ['Frost Edge',     {c:C.cyan,w:C.white,b:C.sky,g:C.blue,h:C.navy,p:C.cyan}],
+  ['Thunder Saber',  {c:C.yellow,w:C.white,b:C.orange,g:C.sky,h:C.navy,p:C.yellow}],
+  ['Dragon Slayer',  {c:C.red,w:C.orange,b:C.plum,g:C.yellow,h:C.ink,p:C.red}],
+  ['Celestial Blade',{c:C.white,w:C.cyan,b:C.grey,g:C.yellow,h:C.sky,p:C.yellow}],
+];
+const spriteCache = {};
+function makeSprite(name, pal, white) {
+  const key = name + JSON.stringify(pal) + (white ? 'W' : '');
+  if (spriteCache[key]) return spriteCache[key];
+  const rows = SPR[name] || ICONS[name], h = rows.length, w = rows[0].length;
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const ch = rows[j][i]; if (ch === '.') continue;
+    x.fillStyle = white ? C.white : ((pal && pal[ch]) || BASEPAL[ch] || C.white); x.fillRect(i, j, 1, 1);
+  }
+  return spriteCache[key] = c;
+}
+function drawIcon(cv, name, pal) { const x = cv.getContext('2d'); x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingEnabled = false; const sp = makeSprite(name, pal); x.drawImage(sp, 0, 0, cv.width, cv.height); }
+const UPS = [
+  {id:'sharp', icon:'🪨', name:'Sharpen',      desc:'+1 base damage per strike',               base:8,   g:1.32},
+  {id:'crit',  icon:'🎯', name:'Crit Charm',   desc:'+4% crit chance (crits hit 3×)',          base:60,  g:1.9,  max:15},
+  {id:'combo', icon:'🔥', name:'Combo Belt',   desc:'+2 max combo stacks (each stack +10%)',   base:120, g:2.0,  max:10},
+  {id:'spirit',icon:'👻', name:'Sword Spirit', desc:'Deals 5% of your damage per sec on its own', base:200, g:1.75},
+  {id:'greed', icon:'🪙', name:'Gold Finder',  desc:'+20% gold from kills',                     base:150, g:1.8},
+];
+
+// Push-up types. k = how far (as a fraction of arm length) your shoulders must drop for a rep.
+const TYPES = {
+  normal:  {name:'Normal',  icon:'💪', mult:1,   k:0.30, tip:'<b>Side-on</b> works best. Hands under shoulders, body straight.'},
+  knee:    {name:'Knee',    icon:'🦵', mult:0.6, k:0.27, tip:'<b>Side-on.</b> Knees on the floor. Good for warm-ups.'},
+  wide:    {name:'Wide',    icon:'🦅', mult:1.2, k:0.27, tip:'<b>Front-on</b> so it can check your hands are wider than your shoulders. Side-on still counts, without the check.', check:'wide'},
+  diamond: {name:'Diamond', icon:'💎', mult:1.5, k:0.27, tip:'<b>Front-on</b> so it can check your hands are close together under your chest. Side-on still counts, without the check.', check:'diamond'},
+  decline: {name:'Decline', icon:'📐', mult:1.4, k:0.27, tip:'<b>Side-on.</b> Feet up on a chair, bed or step.'},
+  pike:    {name:'Pike',    icon:'🔺', mult:1.5, k:0.24, upright:true, tip:'<b>Side-on.</b> Hips high in an upside-down V, lower your head toward the floor.'},
+  dips:    {name:'Dips',    icon:'🪑', mult:1.3, k:0.28, upright:true, unit:'dips', tip:'<b>Side-on.</b> Use parallel bars, two sturdy chairs, or a bench/couch behind you. Keep your head, shoulders and hands in frame. Lower until your upper arms are about level with the floor, then press back up.'},
+  archer:  {name:'Archer',  icon:'🏹', mult:2,   k:0.22, tip:'<b>Front-on.</b> Hands very wide, lower over one arm while the other goes straight, alternate sides. Each side counts as a rep.', check:'archer'},
+};
+const DEPTH = { easy: 0.7, normal: 1, strict: 1.35 };
+
+const today = () => new Date().toLocaleDateString('en-CA');
+const fresh = () => ({gold:0, stage:1, lv:{sharp:0,crit:0,combo:0,spirit:0,greed:0}, sword:0, total:0, kills:0, bosses:0, best:0, days:{}, types:{}, dt:{}, last:Date.now()});
+let S = fresh();
+try { const d = JSON.parse(localStorage.getItem(KEY)); if (d) { S = Object.assign(fresh(), d); S.lv = Object.assign(fresh().lv, d.lv||{}); S.days = d.days || {}; S.types = d.types || {}; S.dt = d.dt || {}; } } catch(e) {}
+const save = () => { S.last = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} };
+
+const SET_KEY = KEY + '_settings';
+let SET = { type:'normal', depth:'normal', sound:'voice', facing:'user', model:'full', graph:'off' };
+try { Object.assign(SET, JSON.parse(localStorage.getItem(SET_KEY)) || {}); } catch(e) {}
+const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch(e) {} };
+
+// ---------- formulas ----------
+const isBoss = st => st % 10 === 0;
+const monHp = st => Math.round(10 * Math.pow(1.22, st - 1) * (isBoss(st) ? 5 : 1));
+const swordName = t => t < SWORDS.length ? SWORDS[t][0] : SWORDS[SWORDS.length - 1][0] + ' +' + (t - SWORDS.length + 1);
+const swordPal = t => SWORDS[Math.min(t, SWORDS.length - 1)][1];
+const monGold = st => Math.round(6 * Math.pow(1.27, st - 1) * (isBoss(st) ? 8 : 1) * (1 + 0.2 * S.lv.greed));
+const swordMult = () => Math.pow(3, S.sword);
+const baseDmg = () => (1 + S.lv.sharp) * swordMult();
+const critChance = () => 0.05 + 0.04 * S.lv.crit;
+const maxCombo = () => 5 + 2 * S.lv.combo;
+const spiritDps = () => baseDmg() * 0.05 * S.lv.spirit;
+const cost = (u, l) => Math.round(u.base * Math.pow(u.g, l));
+const forgeCost = t => Math.round(150 * Math.pow(9, t - 1));
+
+function fmt(n) {
+  if (!isFinite(n)) return '∞';
+  if (n < 1000) return (n < 10 && n % 1) ? n.toFixed(1) : Math.floor(n).toString();
+  const u = ['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc']; let i = -1;
+  while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; }
+  return n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0) + u[i];
+}
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch(e) {} };
+function floater(parent, text, x, y, color, size) {
+  const d = document.createElement('div'); d.className = 'float'; d.textContent = text;
+  d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.color = color || '#fff'; if (size) d.style.fontSize = size + 'px';
+  parent.appendChild(d); setTimeout(() => d.remove(), 900);
+}
+
+// ---------- battle ----------
+let hp = monHp(S.stage), combo = 0, lastStrike = 0, dying = false;
+const COMBO_WINDOW = 6000;
+const comboMult = () => 1 + 0.1 * combo;
+
+function worldOf(st) {
+  const idx = Math.floor((st - 1) / 10), wi = idx % WORLDS.length, lap = Math.floor(idx / WORLDS.length);
+  return { w: WORLDS[wi], wi, lap, sub: ((st - 1) % 10) + 1 };
+}
+function monsterInfo(st) {
+  const { w, wi, lap, sub } = worldOf(st), pre = LAP_NAMES[Math.min(lap, LAP_NAMES.length - 1)];
+  const e = sub === 10 ? w.bosses[lap % w.bosses.length] : w.enemies[sub - 1];
+  return { name: pre + e[0], sprite: e[1], pal: lapPal(e[2], lap), boss: sub === 10, world: w, wi, lap, sub };
+}
+function swordStyle() { /* sword is drawn on the scene canvas each frame */ }
+
+// ---------- pixel scene ----------
+const scene = $('scene'), sx = scene.getContext('2d'); sx.imageSmoothingEnabled = false;
+const SW = 160, SH = 96, FLOOR = 74;
+const fx = { swingT: -1, hitT: -1, shakeT: -1, dieT: -1, spawnT: 0, crit: false, parts: [] };
+const bgCache = {};
+function rng(seed) { return () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; }
+function buildBg(kind, boss) {
+  const c = document.createElement('canvas'); c.width = SW; c.height = SH; const x = c.getContext('2d'), R = rng(kind.length * 977 + 13);
+  const rect = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+  if (kind === 'dungeon') {
+    rect(C.ink, 0, 0, SW, FLOOR);
+    for (let row = 0; row * 7 < FLOOR; row++) { const off = row % 2 ? 0 : 8;
+      for (let col = -1; col * 16 < SW + 16; col++) { const bx = col * 16 + off, by = row * 7;
+        rect(C.dark, bx + 1, by + 1, 15, 6); rect(C.slate, bx + 1, by + 1, 15, 1);
+        if ((row * 7 + col * 13) % 9 === 0) rect(C.ink, bx + 5, by + 3, 2, 1); } }
+    rect('rgba(26,28,44,.55)', 0, 0, SW, 14); rect('rgba(26,28,44,.3)', 0, 14, SW, 10);
+    for (const tx of [22, 138]) { rect(C.ink, tx - 2, 30, 5, 8); rect(C.slate, tx - 1, 31, 3, 6); }
+    rect(C.slate, 0, FLOOR, SW, 2); rect(C.navy, 0, FLOOR + 2, SW, SH);
+    for (let i = 0; i < SW; i += 20) rect(C.ink, i + 17, FLOOR + 2, 1, SH); rect(C.ink, 0, FLOOR + 11, SW, 1);
+  } else if (kind === 'meadow') {
+    rect(C.sky, 0, 0, SW, FLOOR); rect(C.cyan, 0, 40, SW, FLOOR - 40); rect(C.white, 0, 52, SW, 3);
+    for (const [cx, cy, w] of [[20, 12, 22], [96, 20, 30], [140, 8, 18]]) { rect(C.white, cx, cy, w, 5); rect(C.white, cx + 4, cy - 3, w - 10, 3); rect(C.grey, cx, cy + 5, w, 1); }
+    for (let i = 0; i < SW; i++) { const h1 = 14 + Math.round(6 * Math.sin(i / 17) + 3 * Math.sin(i / 7)); rect(C.teal, i, FLOOR - h1, 1, h1); }
+    for (let i = 0; i < SW; i++) { const h2 = 7 + Math.round(4 * Math.sin(i / 11 + 2)); rect(C.green, i, FLOOR - h2, 1, h2); }
+    rect(C.lime, 0, FLOOR, SW, 2); rect(C.green, 0, FLOOR + 2, SW, SH);
+    for (let i = 0; i < 40; i++) { const fx0 = Math.floor(R() * SW), fy = FLOOR + 4 + Math.floor(R() * 18); rect(R() < .5 ? C.teal : C.lime, fx0, fy, 1, 2); }
+    for (let i = 0; i < 10; i++) { const fx0 = Math.floor(R() * SW), fy = FLOOR + 4 + Math.floor(R() * 16); rect([C.yellow, C.white, C.red][i % 3], fx0, fy, 2, 2); }
+  } else if (kind === 'pirate') {
+    rect(C.sky, 0, 0, SW, 44); rect(C.cyan, 0, 30, SW, 14);
+    rect(C.white, 120, 10, 24, 4); rect(C.white, 124, 7, 14, 3); rect(C.white, 30, 18, 18, 3);
+    rect(C.blue, 0, 44, SW, FLOOR - 44); for (let i = 0; i < 30; i++) rect(C.navy, Math.floor(R() * SW), 46 + Math.floor(R() * 20), 6, 1);
+    for (let i = 0; i < 12; i++) rect(C.cyan, Math.floor(R() * SW), 47 + Math.floor(R() * 18), 3, 1);
+    rect(C.red, 14, 0, 4, FLOOR); rect(C.plum, 17, 0, 1, FLOOR);           // mast
+    rect(C.white, 18, 6, 26, 30); rect(C.grey, 18, 33, 26, 3); rect(C.ink, 26, 14, 10, 8); rect(C.white, 29, 16, 4, 3); // sail with emblem
+    rect(C.red, 0, FLOOR - 10, SW, 3); rect(C.orange, 0, FLOOR - 10, SW, 1);  // rail
+    for (let i = 4; i < SW; i += 14) rect(C.red, i, FLOOR - 8, 2, 8);
+    rect(C.orange, 0, FLOOR, SW, SH); for (let y = FLOOR + 5; y < SH; y += 5) rect(C.red, 0, y, SW, 1);
+    for (let y = FLOOR, k = 0; y < SH; y += 5, k++) for (let i = (k % 2) * 13; i < SW; i += 26) rect(C.red, i, y, 1, 5);
+  } else if (kind === 'ninja') {
+    rect(C.navy, 0, 0, SW, FLOOR); rect(C.ink, 0, 0, SW, 16);
+    for (let i = 0; i < 26; i++) rect(R() < .7 ? C.grey : C.white, Math.floor(R() * SW), Math.floor(R() * 40), 1, 1);
+    rect(C.yellow, 126, 10, 14, 14); rect(C.yellow, 124, 13, 18, 8); rect(C.white, 129, 12, 4, 3); // moon
+    for (const [bx, bw, bh] of [[0, 40, 26], [36, 34, 34], [92, 40, 28], [128, 32, 38]]) {
+      rect(C.ink, bx, FLOOR - bh, bw, bh); rect(C.dark, bx - 4, FLOOR - bh - 3, bw + 8, 3); rect(C.ink, bx - 2, FLOOR - bh - 5, bw + 4, 2);
+      for (let wy = FLOOR - bh + 6; wy < FLOOR - 6; wy += 9) for (let wx = bx + 5; wx < bx + bw - 6; wx += 10) if (R() < .45) rect(C.orange, wx, wy, 4, 4); }
+    rect(C.slate, 0, FLOOR, SW, 2); rect(C.dark, 0, FLOOR + 2, SW, SH);
+    for (let y = FLOOR + 2, k = 0; y < SH; y += 4, k++) { rect(C.ink, 0, y + 3, SW, 1); for (let i = (k % 2) * 4; i < SW; i += 8) rect(C.slate, i, y, 3, 1); }
+  } else if (kind === 'shrine') {
+    rect(C.plum, 0, 0, SW, 26); rect(C.red, 0, 26, SW, 20); rect(C.orange, 0, 46, SW, 16); rect(C.yellow, 0, 62, SW, FLOOR - 62);
+    rect(C.yellow, 30, 50, 12, 12); rect(C.yellow, 28, 52, 16, 8);   // sun
+    for (let i = 0; i < SW; i += 2) { const h = 6 + Math.round(4 * Math.sin(i / 9)); rect(C.plum, i, FLOOR - h, 2, h); } // far trees
+    // torii gate
+    rect(C.red, 68, 22, 72, 5); rect(C.ink, 66, 20, 76, 2); rect(C.red, 72, 32, 64, 3);
+    rect(C.red, 78, 27, 5, FLOOR - 27); rect(C.red, 125, 27, 5, FLOOR - 27); rect(C.plum, 82, 27, 1, FLOOR - 27); rect(C.plum, 129, 27, 1, FLOOR - 27);
+    rect(C.ink, 101, 27, 6, 5);
+    rect(C.grey, 0, FLOOR, SW, 2); rect(C.slate, 0, FLOOR + 2, SW, SH);
+    for (let y = FLOOR + 2, k = 0; y < SH; y += 6, k++) { rect(C.dark, 0, y + 5, SW, 1); for (let i = (k % 2) * 10; i < SW; i += 20) rect(C.dark, i, y, 1, 6); }
+    for (const lx of [16, 50]) { rect(C.dark, lx + 2, FLOOR - 24, 2, 24); rect(C.grey, lx - 2, FLOOR - 30, 10, 3); rect(C.slate, lx, FLOOR - 27, 6, 6); }
+  } else if (kind === 'mecha') {
+    rect(C.ink, 0, 0, SW, FLOOR); rect(C.navy, 0, 30, SW, FLOOR - 30); rect(C.plum, 0, 58, SW, FLOOR - 58);
+    for (const [bx, bw, bh, col] of [[0, 22, 50, C.dark], [24, 18, 36, C.navy], [44, 26, 58, C.dark], [96, 20, 40, C.navy], [118, 24, 62, C.dark], [144, 16, 44, C.navy]]) {
+      rect(col, bx, FLOOR - bh, bw, bh); rect(C.slate, bx, FLOOR - bh, bw, 1);
+      for (let wy = FLOOR - bh + 4; wy < FLOOR - 4; wy += 5) for (let wx = bx + 3; wx < bx + bw - 3; wx += 4) if (R() < .4) rect(R() < .6 ? C.cyan : C.yellow, wx, wy, 2, 2); }
+    rect(C.red, 130, FLOOR - 66, 1, 4);
+    rect(C.grey, 0, FLOOR, SW, 2); rect(C.slate, 0, FLOOR + 2, SW, SH);
+    for (let i = 0; i < SW; i += 8) { rect(C.yellow, i, FLOOR + 2, 4, 3); rect(C.ink, i + 4, FLOOR + 2, 4, 3); }
+    for (let i = 10; i < SW; i += 24) rect(C.dark, i, FLOOR + 5, 1, SH);
+    rect(C.dark, 0, FLOOR + 13, SW, 1);
+  }
+  else if (kind === 'forest') {
+    rect(C.teal, 0, 0, SW, FLOOR); rect(C.navy, 0, 0, SW, 18);
+    for (let i = 0; i < SW; i += 3) { const h = 20 + Math.round(6 * Math.sin(i / 8) + 4 * Math.sin(i / 3.3)); rect(C.green, i, 0, 3, h); rect(C.lime, i, h - 1, 2, 1); }
+    for (const [tx, tw] of [[4, 10], [40, 7], [60, 5], [142, 12], [120, 6]]) { rect(C.plum, tx, 16, tw, FLOOR - 16); rect(C.red, tx + 1, 16, 2, FLOOR - 16); rect(C.ink, tx + tw - 1, 16, 1, FLOOR - 16); }
+    for (let i = 0; i < SW; i += 2) { const h = 6 + Math.round(3 * Math.sin(i / 5)); rect(C.green, i, FLOOR - h, 2, h); }
+    rect(C.lime, 0, FLOOR, SW, 2); rect(C.green, 0, FLOOR + 2, SW, SH); rect(C.teal, 0, FLOOR + 10, SW, SH);
+    for (let i = 0; i < 30; i++) rect(R() < .5 ? C.teal : C.lime, Math.floor(R() * SW), FLOOR + 3 + Math.floor(R() * 18), 1, 2);
+    for (const [mx0, col] of [[30, C.red], [70, C.orange], [150, C.red]]) { rect(C.white, mx0 + 1, FLOOR - 3, 2, 4); rect(col, mx0 - 1, FLOOR - 6, 6, 3); rect(C.white, mx0, FLOOR - 5, 1, 1); }
+  } else if (kind === 'sky') {
+    rect(C.blue, 0, 0, SW, 18); rect(C.sky, 0, 18, SW, 30); rect(C.cyan, 0, 48, SW, FLOOR - 48);
+    for (const [cx, cy, w] of [[8, 14, 26], [60, 8, 20], [118, 20, 34], [36, 40, 30], [130, 46, 24]]) {
+      rect(C.white, cx, cy, w, 6); rect(C.white, cx + 4, cy - 3, w - 10, 3); rect(C.white, cx + 8, cy - 5, w - 18, 2); rect(C.grey, cx, cy + 6, w, 1); }
+    for (let i = 0; i < SW; i++) { const h = 4 + Math.round(2 * Math.sin(i / 6) + Math.sin(i / 2.5)); rect(C.white, i, FLOOR - h, 1, h + 2); }
+    rect(C.white, 0, FLOOR, SW, SH); rect(C.grey, 0, FLOOR + 8, SW, SH);
+    for (let i = 0; i < SW; i += 9) { rect(C.white, i, FLOOR + 6, 6, 3); rect(C.grey, i + 3, FLOOR + 3, 4, 1); }
+    rect(C.slate, 0, SH - 3, SW, 3);
+  } else if (kind === 'peaks') {
+    rect(C.plum, 0, 0, SW, 22); rect(C.red, 0, 22, SW, 20); rect(C.orange, 0, 42, SW, FLOOR - 42);
+    const mtn = (base, col, cap, seed) => { for (let i = 0; i < SW; i++) { const h = base + Math.round(12 * Math.abs(Math.sin(i / 23 + seed)) + 6 * Math.sin(i / 7 + seed)); rect(col, i, FLOOR - h, 1, h); if (cap && h > base + 14) rect(cap, i, FLOOR - h, 1, 2); } };
+    mtn(30, C.plum, C.white, 1); mtn(14, C.dark, null, 3);
+    rect(C.ink, 18, 18, 1, 1); rect(C.ink, 17, 17, 1, 1); rect(C.ink, 19, 17, 1, 1); rect(C.ink, 60, 12, 1, 1); rect(C.ink, 59, 11, 1, 1); rect(C.ink, 61, 11, 1, 1);
+    rect(C.slate, 0, FLOOR, SW, 2); rect(C.dark, 0, FLOOR + 2, SW, SH);
+    for (let i = 0; i < 9; i++) { const lx = Math.floor(R() * SW), ly = FLOOR + 4 + Math.floor(R() * 14); rect(C.orange, lx, ly, 5 + Math.floor(R() * 8), 1); rect(C.red, lx + 2, ly + 1, 3, 1); }
+    for (let i = 0; i < 20; i++) rect(C.slate, Math.floor(R() * SW), FLOOR + 3 + Math.floor(R() * 18), 3, 2);
+  }
+  if (boss) { rect('rgba(177,62,83,.22)', 0, 0, SW, SH); rect('rgba(26,28,44,.35)', 0, 0, SW, 6); rect('rgba(26,28,44,.35)', 0, 0, 6, SH); rect('rgba(26,28,44,.35)', SW - 6, 0, 6, SH); }
+  return c;
+}
+function drawScene(t) {
+  const m = monsterInfo(S.stage);
+  const bk = m.world.bg + (m.boss ? 'B' : ''), bg = bgCache[bk] || (bgCache[bk] = buildBg(m.world.bg, m.boss));
+  let shx = 0, shy = 0;
+  if (fx.shakeT >= 0 && t - fx.shakeT < 160) { shx = ((Math.random() * 5) | 0) - 2; shy = ((Math.random() * 5) | 0) - 2; }
+  sx.setTransform(1, 0, 0, 1, shx, shy); sx.clearRect(-4, -4, SW + 8, SH + 8); sx.drawImage(bg, 0, 0);
+  // torch flames
+  if (m.world.bg === 'dungeon') for (const tx of [22, 138]) { const f = Math.floor(t / 120 + tx) % 3;
+    sx.fillStyle = C.red; sx.fillRect(tx - 2, 24 - f, 5, 6 + f); sx.fillStyle = C.orange; sx.fillRect(tx - 1, 25 - f, 3, 5 + f); sx.fillStyle = C.yellow; sx.fillRect(tx, 27, 1, 3);
+    sx.fillStyle = 'rgba(239,125,87,.08)'; sx.fillRect(tx - 10, 16, 21, 24); }
+
+  // monster
+  const sp = SPR[m.sprite], w = sp[0].length, h = sp.length, sc = 3;
+  const mw = w * sc, mh = h * sc, cx = 104;
+  let mx = Math.round(cx - mw / 2), my = FLOOR - mh + 2, alpha = 1, white = false;
+  const fly = FLYING.has(m.sprite);
+  my += (Math.floor(t / 450) % 2) ? 0 : (fly ? 3 : 1);
+  if (fly) my -= 10;
+  if (fx.spawnT >= 0) { const k = (t - fx.spawnT) / 300; if (k < 1) my -= Math.round((1 - k) * (1 - k) * 60); else fx.spawnT = -1; }
+  if (fx.hitT >= 0) { const k = t - fx.hitT; if (k < 90) { white = true; mx += 3; } else if (k < 160) mx += 1; }
+  if (fx.dieT >= 0) { const k = t - fx.dieT; white = Math.floor(k / 70) % 2 === 0; if (k > 280) { alpha = Math.max(0, 1 - (k - 280) / 300); my += Math.round((k - 280) / 20); } }
+  // shadow
+  sx.fillStyle = 'rgba(26,28,44,.6)'; sx.fillRect(cx - mw / 2 + 4, FLOOR, mw - 8, 2); sx.fillRect(cx - mw / 2 + 8, FLOOR + 2, mw - 16, 1);
+  sx.globalAlpha = alpha; sx.drawImage(makeSprite(m.sprite, m.pal, white), mx, my, mw, mh); sx.globalAlpha = 1;
+
+  // sword
+  const swd = [swordName(S.sword), swordPal(S.sword)];
+  let sxp = 34, syp = FLOOR - 40 + ((Math.floor(t / 600) % 2) ? 0 : 1), rot = -0.25;
+  if (fx.swingT >= 0) { const k = (t - fx.swingT) / 260;
+    if (k < 1) { const e = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55; sxp += e * 34; rot = -0.25 - 1.1 * Math.sin(Math.min(1, k / 0.45) * Math.PI) * (k < 0.45 ? 1 : 0) + e * 1.5; }
+    else fx.swingT = -1; }
+  sx.save(); sx.translate(sxp + 16, syp + 16); sx.rotate(rot); sx.drawImage(makeSprite('sword', swd[1]), -16, -16, 32, 32); sx.restore();
+  // slash streak
+  if (fx.swingT >= 0) { const k = (t - fx.swingT) / 260; if (k > 0.3 && k < 0.7) { sx.fillStyle = fx.crit ? C.yellow : C.white;
+    for (let i = 0; i < 26; i++) sx.fillRect(cx - 14 + i, FLOOR - 46 + i + (i % 3 === 0 ? 1 : 0), 2, 1);
+    if (fx.crit) for (let i = 0; i < 26; i++) sx.fillRect(cx + 12 - i, FLOOR - 46 + i, 2, 1); } }
+
+  // particles
+  fx.parts = fx.parts.filter(p => t - p.t0 < p.life);
+  for (const p of fx.parts) { const k = (t - p.t0) / 1000; sx.fillStyle = p.c;
+    sx.fillRect(Math.round(p.x + p.vx * k), Math.round(p.y + p.vy * k + 120 * k * k), p.s, p.s); }
+  sx.setTransform(1, 0, 0, 1, 0, 0);
+}
+function burst(n, colors, x, y, speed = 60) {
+  const t = performance.now();
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.4 + Math.random());
+    fx.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, c: colors[i % colors.length], s: Math.random() < .3 ? 2 : 1, t0: t, life: 400 + Math.random() * 300 }); }
+}
+function showBanner(boss) {
+  const m = monsterInfo(S.stage), b = $('banner');
+  $('bannerSub').textContent = boss ? 'Boss battle' : 'World ' + (m.wi + 1) + (m.lap ? ' · Lap ' + (m.lap + 1) : '');
+  $('bannerName').textContent = boss ? m.name : m.world.name;
+  b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
+}
+const toPx = (x, y) => { const k = scene.clientWidth / SW; return [x * k, y * k]; };
+
+function strike(isRep, typeMult = 1, typeKey = null) {
+  if (dying) return;
+  const now = performance.now();
+  if (isRep) {
+    combo = (now - lastStrike < COMBO_WINDOW) ? Math.min(maxCombo(), combo + 1) : 0;
+    lastStrike = now;
+    S.total++; S.days[today()] = (S.days[today()] || 0) + 1;
+    if (typeKey) { S.types[typeKey] = (S.types[typeKey] || 0) + 1; const dk = today(); S.dt[dk] = S.dt[dk] || {}; S.dt[dk][typeKey] = (S.dt[dk][typeKey] || 0) + 1; }
+  }
+  const crit = Math.random() < critChance();
+  const dmg = baseDmg() * typeMult * comboMult() * (crit ? 3 : 1);
+  if (dmg > S.best) S.best = dmg;
+  hp -= dmg;
+  const ar = $('arena'), t0 = performance.now(), mi = monsterInfo(S.stage);
+  fx.swingT = t0; fx.crit = crit; setTimeout(() => { fx.hitT = performance.now(); if (crit) fx.shakeT = fx.hitT;
+    burst(crit ? 14 : 7, [mi.pal.a || C.white, mi.pal.b || C.grey, C.white], 104, FLOOR - 26, crit ? 90 : 60); }, 110);
+  const [fxp, fyp] = toPx(104, 14);
+  floater(ar, (crit ? 'CRIT ' : '') + fmt(dmg), fxp + (Math.random() * 30 - 15), fyp, crit ? C.yellow : C.white, crit ? 24 : 18);
+  buzz(crit ? 60 : 25);
+  if (hp <= 0) kill();
+  render();
+}
+function kill() {
+  dying = true; hp = 0;
+  const g = monGold(S.stage); S.gold += g; S.kills++; if (isBoss(S.stage)) S.bosses++;
+  const ar = $('arena'), [gx, gy] = toPx(104, 30); floater(ar, '+' + fmt(g) + 'G', gx, gy, C.yellow, 22);
+  setTimeout(() => { fx.dieT = performance.now(); const mi = monsterInfo(S.stage); burst(24, [mi.pal.a || C.white, mi.pal.c || C.grey, C.yellow, C.white], 104, FLOOR - 24, 110); }, 140);
+  setTimeout(() => { S.stage++; hp = monHp(S.stage); dying = false; fx.dieT = -1; fx.spawnT = performance.now(); if (S.stage % 10 === 1) showBanner(); else if (S.stage % 10 === 0) showBanner(true); save(); render(); }, 760);
+}
+
+// ---------- sound ----------
+let actx = null;
+function beep(freq = 880, dur = 0.09) {
+  if (!actx) return;
+  try { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = freq; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.25, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur); o.start(); o.stop(actx.currentTime + dur); } catch(e) {}
+}
+function announce(n) {
+  if (SET.sound === 'off') return;
+  if (SET.sound === 'voice' && 'speechSynthesis' in window) {
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(n)); u.rate = 1.4; speechSynthesis.speak(u); return; } catch(e) {}
+  }
+  beep();
+}
+
+// ---------- camera + pose tracking ----------
+const VISION = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELS = {
+  full: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  lite: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+};
+let visionLib = null, landmarker = null, landmarkerModel = null, camOn = false, stream = null, lastVT = -1, camReps = 0;
+const video = $('video'), cvs = $('overlay'), ctx = cvs.getContext('2d');
+const gcv = $('graph'), gctx = gcv.getContext('2d');
+
+function setStatus(t, cls) { const s = $('status'); if (s.textContent !== t) s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); }
+function setPhase(t, down) { const p = $('phase'); p.textContent = t; p.className = 'pill' + (down ? ' down' : ''); }
+
+async function loadLandmarker() {
+  if (landmarker && landmarkerModel === SET.model) return;
+  setStatus('Loading pose tracker (first time can take 10–20 seconds)…');
+  if (!visionLib) visionLib = await import(VISION + '/vision_bundle.mjs');
+  const files = await visionLib.FilesetResolver.forVisionTasks(VISION + '/wasm');
+  const opts = d => ({ baseOptions: { modelAssetPath: MODELS[SET.model], delegate: d }, runningMode: 'VIDEO', numPoses: 1,
+    minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  if (landmarker) { try { landmarker.close(); } catch(e) {} }
+  try { landmarker = await visionLib.PoseLandmarker.createFromOptions(files, opts('GPU')); }
+  catch (e) { landmarker = await visionLib.PoseLandmarker.createFromOptions(files, opts('CPU')); }
+  landmarkerModel = SET.model;
+}
+
+async function startCam() {
+  if (camOn) { stopCam(); return; }
+  try { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } actx.resume(); } catch(e) {}
+  if (SET.sound === 'voice' && 'speechSynthesis' in window) { try { speechSynthesis.speak(new SpeechSynthesisUtterance(' ')); } catch(e) {} }
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setStatus('No camera access here. Open the game from its https:// link to use the camera.', 'warn'); return;
+  }
+  try {
+    setStatus('Asking for camera…');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: SET.facing, width: { ideal: 960 }, height: { ideal: 720 } }, audio: false });
+    video.srcObject = stream; await video.play();
+    $('camview').classList.add('on'); $('camview').classList.toggle('mirror', SET.facing === 'user');
+    await loadLandmarker();
+    camOn = true; resetDet(); camReps = 0; $('camCount').textContent = '0'; $('sideTxt').textContent = '';
+    $('camBtn').textContent = 'Stop camera';
+    setStatus('Get into position with straight arms…');
+    requestAnimationFrame(camLoop);
+  } catch (e) {
+    console.error(e); stopCam();
+    setStatus(e && e.name === 'NotAllowedError' ? 'Camera permission was denied. Allow camera access for this site in your browser settings, then try again.'
+      : 'Could not start the camera or tracker (' + (e && (e.name || e.message)) + '). Check your internet connection and try again.', 'warn');
+  }
+}
+function stopCam() {
+  camOn = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
+  $('camview').classList.remove('on'); $('camBtn').textContent = 'Start camera'; setPhase('READY');
+}
+
+function camLoop() {
+  if (!camOn) return;
+  if (video.readyState >= 2 && video.currentTime !== lastVT) {
+    lastVT = video.currentTime;
+    const W = video.videoWidth, H = video.videoHeight;
+    if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H; }
+    let res = null; try { res = landmarker.detectForVideo(video, performance.now()); } catch (e) {}
+    ctx.clearRect(0, 0, W, H);
+    const lm = res && res.landmarks && res.landmarks[0];
+    if (!lm) { lostFrames(); setStatus('Can\'t see you. Move back so your head, shoulders and hands are in frame.', 'warn'); }
+    else processPose(lm, W, H, performance.now());
+  }
+  requestAnimationFrame(camLoop);
+}
+
+// ---- rep detection ----
+// Signal = how high your shoulders are above your hands (or just shoulder height if hands aren't visible),
+// measured relative to your own arm length. It works from side-on or front-on and adapts to each person.
+let det;
+function resetDet() { det = { phase:'up', peak:null, valley:null, sig:null, prev:null, armLen:0, lastRep:0, downAt:0, lost:0, stable:0, form:null, lastSide:null, lastWy:null, hist:[] }; }
+resetDet();
+function lostFrames() { det.lost++; if (det.lost > 8) { det.peak = null; det.phase = 'up'; det.sig = null; det.prev = null; det.stable = 0; setPhase('READY'); } }
+
+const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+
+function processPose(L, W, H, now) {
+  const vis = i => (L[i].visibility ?? 1);
+  const ok = i => vis(i) > 0.4;
+  const P = i => ({ x: L[i].x * W / H, y: L[i].y });          // aspect-corrected, in units of frame height
+  const px = i => ({ x: L[i].x * W, y: L[i].y * H });
+
+  // draw skeleton
+  ctx.lineWidth = Math.max(4, W / 120); ctx.lineCap = 'round';
+  ctx.strokeStyle = det.phase === 'down' ? C.lime : C.sky;
+  for (const [a, b] of BONES) if (ok(a) && ok(b)) { const A = px(a), B = px(b); ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke(); }
+  ctx.fillStyle = '#fff';
+  for (const i of [0, 11, 12, 13, 14, 15, 16]) if (ok(i)) { const p = px(i); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(5, W / 100), 0, 7); ctx.fill(); }
+
+  const sh = [11, 12].filter(ok), wr = [15, 16].filter(ok), hp = [23, 24].filter(ok);
+  if (!sh.length) { lostFrames(); setStatus('Can\'t see your shoulders. Make sure your upper body is in frame.', 'warn'); return; }
+  det.lost = 0;
+
+  const sy = avg(sh.map(i => P(i).y)), sx = avg(sh.map(i => P(i).x));
+  // hands stay planted, so if they briefly drop out of tracking, reuse their last known height
+  if (wr.length) det.lastWy = avg(wr.map(i => P(i).y));
+  const handsOk = det.lastWy != null;
+  const wy = handsOk ? det.lastWy : null;
+  const raw = handsOk ? (wy - sy) : -sy;
+
+  // arm length (best visible side), slowly-decaying max so it ignores bent-arm moments
+  let arm = 0;
+  for (const [s, e, w] of [[11, 13, 15], [12, 14, 16]]) if (ok(s) && ok(e) && ok(w)) arm = Math.max(arm, dist(P(s), P(e)) + dist(P(e), P(w)));
+  if (arm > 0) det.armLen = det.armLen ? Math.max(arm, det.armLen * 0.998) : arm;
+  if (!det.armLen) { setStatus('Can\'t see your arms yet. Make sure your hands are in frame.', 'warn'); return; }
+
+  const shoulderW = sh.length === 2 ? dist(P(11), P(12)) : 0;
+  const frontView = shoulderW > det.armLen * 0.35;
+
+  // standing / not in position check
+  if (hp.length && !TYPES[SET.type].upright) {
+    const hy = avg(hp.map(i => P(i).y)), hx = avg(hp.map(i => P(i).x));
+    const torso = Math.hypot(hx - sx, hy - sy);
+    const upright = (hy - sy) > Math.abs(hx - sx) * 2 && torso > Math.max(shoulderW * 1.0, det.armLen * 0.5);
+    if (upright) { det.peak = null; det.phase = 'up'; det.stable = 0; setPhase('READY'); setStatus('Looks like you\'re standing. Get into push-up position.', 'warn'); pushHist(raw); return; }
+  }
+  if (handsOk && wy < sy - det.armLen * 0.2 && !TYPES[SET.type].upright) { setStatus('Hands look higher than your shoulders. Get into push-up position.', 'warn'); }
+
+  // tracking glitch guard
+  if (det.prev != null && Math.abs(raw - det.prev) > det.armLen * 0.6) { det.prev = raw; det.peak = null; det.phase = 'up'; det.stable = 0; return; }
+  det.prev = raw;
+
+  det.sig = det.sig == null ? raw : det.sig * 0.45 + raw * 0.55;
+  const s = det.sig;
+  const kDown = TYPES[SET.type].k * DEPTH[SET.depth] * det.armLen;
+  const kUp = kDown * 0.75;
+
+  if (det.peak == null) { det.peak = s; det.phase = 'up'; det.stable = 0; }
+  det.stable++;
+
+  if (det.phase === 'up') {
+    det.peak = Math.max(s, det.peak - det.armLen * 0.0015);   // follow the top, drift down very slowly
+    if (det.stable < 10) { setPhase('LOCKING ON'); setStatus('Hold straight arms for a moment…'); }
+    else {
+      setPhase('UP');
+      if (s < det.peak - kDown) {
+        det.phase = 'down'; det.valley = s; det.downAt = now; det.form = formSnapshot(P, ok, sx, shoulderW, frontView);
+        setPhase('DOWN', true); setStatus('Good depth! Push up!', 'ok'); beep(520, 0.05);
+      } else setStatus('Tracking. Go down until the side bar passes the white line.');
+    }
+  } else {
+    if (s < det.valley) { det.valley = s; det.form = formSnapshot(P, ok, sx, shoulderW, frontView); }
+    if (s > det.valley + kUp && now - det.lastRep > 350) {
+      det.phase = 'up'; det.peak = s; det.lastRep = now; countRep();
+    } else if (now - det.downAt > 12000) { det.phase = 'up'; det.peak = s; setPhase('UP'); }
+  }
+
+  // depth bar: 70% mark = enough depth
+  const reach = det.phase === 'down' ? (det.peak - s) : (det.peak - s);
+  $('depth').style.height = Math.max(0, Math.min(100, reach / kDown * 70)) + '%';
+  pushHist(s, kDown);
+}
+
+function formSnapshot(P, ok, sx, shoulderW, frontView) {
+  if (!(ok(15) && ok(16))) return { known: false, frontView };
+  const w1 = P(15), w2 = P(16), handW = dist(w1, w2), midX = (w1.x + w2.x) / 2;
+  const shift = handW > 0 ? (sx - midX) / (handW / 2) : 0;  // -1..1, which hand the shoulders are over
+  return { known: frontView && shoulderW > 0, frontView, ratio: shoulderW ? handW / shoulderW : 0, shift };
+}
+
+function countRep() {
+  const t = TYPES[SET.type], f = det.form || {};
+  let mult = t.mult, label = t.name, note = '', ok = true;
+  if (t.check && f.known) {
+    if (t.check === 'diamond' && f.ratio > 0.9) { ok = false; note = 'Hands too wide for diamond, counted as normal.'; }
+    if (t.check === 'wide' && f.ratio < 1.35) { ok = false; note = 'Hands not wide enough, counted as normal.'; }
+    if (t.check === 'archer') {
+      if (Math.abs(f.shift) < 0.25) { ok = false; note = 'Shift further over one arm for an archer rep. Counted as wide.'; mult = TYPES.wide.mult; label = 'Wide'; }
+      else {
+        const side = f.shift > 0 ? 'L' : 'R';
+        // Person's left is image right only when mirrored, so describe by "this side / other side"
+        if (det.lastSide === side) note = 'Same side twice. Remember to alternate!';
+        det.lastSide = side; $('sideTxt').textContent = side === 'L' ? 'side A' : 'side B';
+      }
+    }
+  }
+  if (!ok && t.check !== 'archer') { mult = 1; label = 'Normal'; }
+  camReps++; $('camCount').textContent = camReps;
+  const fl = $('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  setPhase('UP'); setStatus(note || `${label} rep! ${fmt(camReps)} this set.`, note ? 'warn' : 'ok');
+  announce(camReps);
+  strike(true, mult, ok ? SET.type : (label === 'Wide' ? 'wide' : 'normal'));
+}
+
+function pushHist(s, k) {
+  if (SET.graph !== 'on') return;
+  det.hist.push({ s, peak: det.peak, k: k || 0, down: det.phase === 'down' });
+  if (det.hist.length > 180) det.hist.shift();
+  const Wd = gcv.width, Hd = gcv.height, h = det.hist;
+  gctx.clearRect(0, 0, Wd, Hd);
+  const vals = h.flatMap(p => [p.s, p.peak ?? p.s, (p.peak ?? p.s) - p.k]);
+  const mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx - mn) || 1;
+  const Y = v => Hd - 4 - (v - mn) / rg * (Hd - 8), X = i => i / 179 * Wd;
+  const line = (fn, col) => { gctx.strokeStyle = col; gctx.lineWidth = 2; gctx.beginPath(); h.forEach((p, i) => { const v = fn(p); if (v == null) return; i ? gctx.lineTo(X(i), Y(v)) : gctx.moveTo(X(i), Y(v)); }); gctx.stroke(); };
+  line(p => p.peak != null ? p.peak - p.k : null, '#ffffff55');
+  line(p => p.s, C.sky);
+}
+
+$('camBtn').addEventListener('click', startCam);
+$('tapBtn').addEventListener('pointerdown', e => { e.preventDefault(); strike(true, 1, 'tap'); });
+
+// ---------- settings UI ----------
+function buildTypes() {
+  $('types').innerHTML = Object.entries(TYPES).map(([k, t]) => `<button data-t="${k}">${t.name}<small>×${t.mult} dmg</small></button>`).join('');
+  $('types').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { SET.type = b.dataset.t; saveSet(); det.lastSide = null; $('sideTxt').textContent = ''; syncSettings(); }));
+}
+function bindSeg(id, key, after) {
+  $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => { SET[key] = b.dataset.v; saveSet(); syncSettings(); after && after(); }));
+}
+function syncSettings() {
+  $('types').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === SET.type));
+  $('tip').innerHTML = TYPES[SET.type].tip;
+  for (const [id, key] of [['depthSeg','depth'],['soundSeg','sound'],['facingSeg','facing'],['modelSeg','model'],['graphSeg','graph']])
+    $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === SET[key]));
+  $('graph').classList.toggle('on', SET.graph === 'on' && camOn);
+}
+const restartCam = () => { if (camOn) { stopCam(); startCam(); } };
+bindSeg('depthSeg', 'depth'); bindSeg('soundSeg', 'sound'); bindSeg('facingSeg', 'facing', restartCam); bindSeg('modelSeg', 'model', restartCam);
+bindSeg('graphSeg', 'graph', () => { det.hist = []; });
+
+// ---------- forge ----------
+function buildForge() {
+  $('ups').innerHTML =
+    `<div class="up forge"><div class="tx"><div class="nm" id="fgName"></div><div class="ds">Forge a new sword: ×3 all damage</div></div><button id="fgBtn"></button></div>` +
+    UPS.map(u => `<div class="up"><div class="tx"><div class="nm">${u.name} <span style="color:var(--grey);font-family:'Pixelify Sans';text-transform:none" id="lv-${u.id}"></span></div><div class="ds">${u.desc}</div></div><button id="b-${u.id}"></button></div>`).join('');
+  UPS.forEach(u => $('b-' + u.id).addEventListener('click', () => {
+    const l = S.lv[u.id]; if (u.max && l >= u.max) return; const c = cost(u, l); if (S.gold < c) return;
+    S.gold -= c; S.lv[u.id]++; buzz(15); save(); render();
+  }));
+  $('fgBtn').addEventListener('click', () => {
+    const c = forgeCost(S.sword + 1); if (S.gold < c) return;
+    S.gold -= c; S.sword++; swordStyle(); buzz(80); save(); render();
+    modal('New sword!', `You forged the ${swordName(S.sword)}. All damage ×3.`, [['Let\'s go']]);
+  });
+}
+
+// ---------- modal / nav ----------
+function modal(t, p, btns) {
+  $('mT').textContent = t; $('mP').textContent = p; $('mB').innerHTML = '';
+  btns.forEach(([label, fn], i) => { const b = document.createElement('button'); b.textContent = label; b.className = i ? 'mno' : 'mok';
+    b.onclick = () => { $('modal').classList.remove('show'); fn && fn(); }; $('mB').appendChild(b); });
+  $('modal').classList.add('show');
+}
+let cur = 'battle';
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  cur = b.dataset.v;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'v-' + cur));
+  render();
+}));
+$('resetBtn').addEventListener('click', () => modal('Wipe everything?', 'This deletes all progress and your push-up history. It can\'t be undone.',
+  [['Wipe it', () => { S = fresh(); hp = monHp(1); combo = 0; swordStyle(); save(); render(); }], ['Cancel']]));
+
+// ---------- render ----------
+function render() {
+  $('gold').textContent = fmt(S.gold); $('dmg').textContent = fmt(baseDmg()); $('pu').textContent = fmt(pushupTotal());
+  const m = monsterInfo(S.stage), max = monHp(S.stage);
+  if (!dying) $('mName').textContent = m.name;
+  $('mLvl').textContent = 'W' + (m.wi + 1) + (m.lap ? '+' + m.lap : '') + ' ' + m.world.name + ' · ' + (m.boss ? 'BOSS' : m.sub + '/10');
+  $('arena').classList.toggle('boss', isBoss(S.stage));
+  $('hpFill').style.width = Math.max(0, hp / max * 100) + '%';
+  const perRep = baseDmg() * TYPES[SET.type].mult;
+  $('hpTxt').textContent = fmt(Math.max(0, hp)) + ' / ' + fmt(max) + '  (~' + Math.max(1, Math.ceil(Math.max(0, hp) / perRep)) + ' ' + (TYPES[SET.type].unit || TYPES[SET.type].name.toLowerCase() + ' push-ups') + ')';
+  $('combo').textContent = '×' + comboMult().toFixed(1) + (combo ? ` (${combo}/${maxCombo()})` : '');
+  $('dps').textContent = fmt(spiritDps()) + ' /sec';
+  $('reward').textContent = fmt(monGold(S.stage)) + ' gold';
+  if (cur === 'forge') {
+    const sw = [swordName(S.sword), swordPal(S.sword)];
+    drawIcon($('swIcon'), 'sword', sw[1]);
+    $('swName').textContent = sw[0]; $('swDesc').textContent = `Sword tier ${S.sword + 1} • ×${fmt(swordMult())} damage • ${fmt(baseDmg())} per normal push-up`;
+    { const c = forgeCost(S.sword + 1); $('fgName').textContent = 'Forge: ' + swordName(S.sword + 1); $('fgBtn').textContent = fmt(c) + ' G'; $('fgBtn').disabled = S.gold < c; }
+    UPS.forEach(u => { const l = S.lv[u.id], b = $('b-' + u.id);
+      $('lv-' + u.id).textContent = 'Lv ' + l + (u.max ? '/' + u.max : '');
+      if (u.max && l >= u.max) { b.textContent = 'MAXED'; b.disabled = true; } else { const c = cost(u, l); b.textContent = fmt(c) + ' G'; b.disabled = S.gold < c; } });
+  }
+  if (cur === 'stats') renderStats();
+}
+
+// ---------- stats + calendar ----------
+const pushupTotal = () => Math.max(0, S.total - (S.types.dips || 0) - (S.types.tap || 0));
+const nowD = new Date();
+let calY = nowD.getFullYear(), calM = nowD.getMonth(), calSel = today(), statsSig = '';
+const keyOf = (y, m, d) => new Date(y, m, d).toLocaleDateString('en-CA');
+const typeLabel = k => k === 'tap' ? 'Tap (testing)' : (TYPES[k] ? TYPES[k].name : k);
+
+function renderStats() {
+  const sig = JSON.stringify([S.total, S.kills, S.stage, Math.round(S.best), calY, calM, calSel, today()]);
+  if (sig === statsSig) return; statsSig = sig;
+  $('totPU').textContent = fmt(pushupTotal());
+  $('totDips').textContent = fmt(S.types.dips || 0);
+  $('totToday').textContent = fmt(S.days[today()] || 0);
+
+  // calendar
+  const first = new Date(calY, calM, 1), nDays = new Date(calY, calM + 1, 0).getDate(), offset = (first.getDay() + 6) % 7; // Monday first
+  $('calTitle').textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const t = new Date(); $('calNext').disabled = calY > t.getFullYear() || (calY === t.getFullYear() && calM >= t.getMonth());
+  let max = 0, monthTot = 0, active = 0, best = 0, bestDay = '';
+  for (let d = 1; d <= nDays; d++) { const c = S.days[keyOf(calY, calM, d)] || 0; monthTot += c; if (c) active++; if (c > max) { max = c; bestDay = d; } }
+  const todayK = today(), cells = ['M','T','W','T','F','S','S'].map(x => `<div class="dow">${x}</div>`);
+  for (let i = 0; i < offset; i++) cells.push('<div></div>');
+  for (let d = 1; d <= nDays; d++) {
+    const k = keyOf(calY, calM, d), c = S.days[k] || 0, future = new Date(calY, calM, d) > t;
+    const lvl = c ? (c >= max * 0.66 ? 3 : c >= max * 0.33 ? 2 : 1) : 0, bg = '';
+    cells.push(`<div class="d${c ? ' has l' + lvl : ''}${k === todayK ? ' today' : ''}${k === calSel ? ' sel' : ''}${future ? ' future' : ''}" data-k="${k}" style="${bg}"><i>${d}</i><b>${c ? fmt(c) : ''}</b></div>`);
+  }
+  $('calGrid').innerHTML = cells.join('');
+  const ord = n => n + ((n % 100 > 10 && n % 100 < 14) ? 'th' : ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th'));
+  $('calSum').innerHTML = `<span>Month: <b>${fmt(monthTot)}</b> reps</span><span>Active days: <b>${active}</b></span><span>Best: <b>${max ? fmt(max) + ' (' + ord(bestDay) + ')' : '-'}</b></span>`;
+
+  // selected day
+  const tot = S.days[calSel] || 0, br = S.dt[calSel] || {};
+  const lbl = new Date(calSel + 'T00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  let rows = Object.entries(br).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${typeLabel(k)}<span>${fmt(n)}</span>`);
+  const known = Object.values(br).reduce((a, b) => a + b, 0);
+  if (tot > known) rows.push(`Push-ups (before types were tracked)<span>${fmt(tot - known)}</span>`);
+  $('dayInfo').innerHTML = `<b>${lbl}</b><span>${fmt(tot)} total</span>` + (rows.length ? '<br>' + rows.join('<br>') : '<br><span style="float:none;color:var(--grey)">Nothing logged this day.</span>');
+
+  const tl = Object.entries(TYPES).map(([k, t]) => `${t.name}<span>${fmt(S.types[k] || 0)}</span>`);
+  if (S.types.tap) tl.push(`Tap (testing)<span>${fmt(S.types.tap)}</span>`);
+  $('bytype').innerHTML = tl.join('<br>');
+  $('alltime').innerHTML = `Monsters slain<span>${fmt(S.kills)}</span><br>Bosses slain<span>${fmt(S.bosses)}</span><br>Current stage<span>${S.stage}</span><br>Current world<span>${monsterInfo(S.stage).world.name}</span><br>Biggest hit<span>${fmt(S.best)}</span>`;
+}
+$('calGrid').addEventListener('click', e => { const c = e.target.closest('.d'); if (!c || c.classList.contains('future')) return; calSel = c.dataset.k; renderStats(); });
+$('calPrev').addEventListener('click', () => { calM--; if (calM < 0) { calM = 11; calY--; } renderStats(); });
+$('calNext').addEventListener('click', () => { calM++; if (calM > 11) { calM = 0; calY++; } renderStats(); });
+
+// ---------- loop ----------
+let lt = performance.now(), ui = 0, sv = 0;
+function loop(t) {
+  const dt = Math.min(0.25, (t - lt) / 1000); lt = t;
+  if (!dying && S.lv.spirit > 0) { hp -= spiritDps() * dt; if (hp <= 0) kill(); }
+  if (combo && performance.now() - lastStrike > COMBO_WINDOW) combo = 0;
+  if (cur === 'battle') drawScene(t);
+  ui += dt; sv += dt;
+  if (ui > 0.15) { ui = 0; render(); syncSettings(); }
+  if (sv > 5) { sv = 0; save(); }
+  requestAnimationFrame(loop);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+window.addEventListener('pagehide', save);
+if (!window.isSecureContext || !navigator.mediaDevices) setStatus('Camera isn\'t available in this view. Open the game from its https:// link to use it.', 'warn');
+
+// test hook (used for automated checks; harmless)
+window.__slayer = { processPose: (L, W, H, t) => { processPose(L, W, H, t); return { reps: camReps, phase: det.phase }; }, set: (k, v) => { SET[k] = v; }, reset: () => { resetDet(); camReps = 0; } };
+
+document.querySelectorAll('canvas.icon').forEach(c => drawIcon(c, c.dataset.icon));
+buildTypes(); buildForge(); swordStyle(); setTimeout(() => showBanner(isBoss(S.stage)), 300); syncSettings(); render(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
