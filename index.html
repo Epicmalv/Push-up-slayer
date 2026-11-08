@@ -27,8 +27,8 @@
   main{flex:1;overflow-y:auto}
   .view{display:none;padding:10px 10px 20px}
   .view.active{display:block}
-  nav{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--dark);border-top:3px solid #0d0e17;padding:6px 10px;padding-bottom:max(6px,env(safe-area-inset-bottom))}
-  nav button{background:var(--slate);border:3px solid var(--ink);box-shadow:var(--bevel);color:var(--white);padding:9px 0;font-family:Silkscreen;font-size:13px;text-transform:uppercase}
+  nav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:var(--dark);border-top:3px solid #0d0e17;padding:6px 10px;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+  nav button{background:var(--slate);border:3px solid var(--ink);box-shadow:var(--bevel);color:var(--white);padding:9px 0;font-family:Silkscreen;font-size:12px;text-transform:uppercase}
   nav button.active{background:var(--yellow);color:var(--ink)}
 
   /* arena */
@@ -139,6 +139,24 @@
   .calsum b{color:var(--white)}
   .dayinfo{margin-top:8px;background:var(--ink);border:2px solid var(--slate);padding:6px 8px;font-size:14px;line-height:1.7}
   .dayinfo span{float:right;color:var(--yellow)}
+  .lbtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px}
+  .lbtabs button{border:2px solid var(--ink);background:var(--slate);color:var(--white);padding:6px 0;font-family:Silkscreen;font-size:11px;text-transform:uppercase}
+  .lbtabs button.on{background:var(--yellow);color:var(--ink)}
+  .lb{background:var(--dark);border:3px solid #0d0e17}
+  .lbrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid var(--ink);font-size:16px}
+  .lbrow:last-child{border-bottom:0}
+  .lbrow .rk{font-family:Silkscreen;width:30px;color:var(--grey)}
+  .lbrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lbrow .sc{font-family:Silkscreen;color:var(--yellow)}
+  .lbrow.r1 .rk{color:var(--yellow)}.lbrow.r2 .rk{color:var(--white)}.lbrow.r3 .rk{color:var(--orange)}
+  .lbrow.me{background:var(--navy)}
+  .lbrow small{display:block;font-size:12px;color:var(--grey)}
+  .lbmsg{padding:14px 10px;color:var(--grey);font-size:14px;text-align:center}
+  .namebox{display:flex;gap:6px;margin-top:6px}
+  .namebox input{flex:1;min-width:0;background:var(--ink);border:3px solid var(--slate);color:var(--white);font-family:'Pixelify Sans';font-size:16px;padding:8px;user-select:text;-webkit-user-select:text}
+  .namebox button{border:3px solid var(--ink);box-shadow:var(--bevel);background:var(--green);color:var(--ink);font-family:Silkscreen;font-size:13px;padding:0 12px}
+  .lbfoot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:13px;color:var(--grey)}
+  .lbfoot button{border:2px solid var(--ink);background:var(--slate);color:var(--white);font-family:Silkscreen;font-size:11px;padding:5px 9px}
   .danger{background:none;border:0;color:var(--orange);font-family:inherit;text-decoration:underline;font-size:13px;margin-top:14px}
   #modal{position:fixed;inset:0;background:rgba(26,28,44,.85);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
   #modal.show{display:flex}
@@ -208,6 +226,20 @@
       <div id="ups"></div>
     </section>
 
+    <section class="view" id="v-ranks">
+      <div class="sec" style="margin-top:4px">LEADERBOARD</div>
+      <div id="lbSetup" style="display:none">
+        <div class="list" style="line-height:1.5">Pick a player name so your friends can see you.<div class="namebox"><input id="nameIn" maxlength="16" placeholder="Your name" autocomplete="off"><button id="nameBtn">Join</button></div></div>
+      </div>
+      <div id="lbMain">
+        <div class="lbtabs" id="lbTabs"><button data-m="today">Today</button><button data-m="week">Week</button><button data-m="all">All time</button><button data-m="stage">Stage</button></div>
+        <div class="lb" id="lbList"><div class="lbmsg">Loading…</div></div>
+        <div class="lbfoot"><span id="lbStatus"></span><button id="lbRefresh">Refresh</button></div>
+        <div class="lbfoot"><span id="lbMe"></span><button id="lbRename">Change name</button></div>
+      </div>
+      <div class="tiny help" style="margin-top:10px">Only push-ups counted by the camera go on the leaderboard. Dips are shown under your name. Tap strikes don't count.</div>
+    </section>
+
     <section class="view" id="v-stats">
       <div class="sec" style="margin-top:4px">TOTALS</div>
       <div class="totals">
@@ -233,6 +265,7 @@
   <nav>
     <button class="active" data-v="battle">Battle</button>
     <button data-v="forge">Forge</button>
+    <button data-v="ranks">Ranks</button>
     <button data-v="stats">Stats</button>
   </nav>
 </div>
@@ -588,7 +621,7 @@ function strike(isRep, typeMult = 1, typeKey = null) {
   if (isRep) {
     combo = (now - lastStrike < COMBO_WINDOW) ? Math.min(maxCombo(), combo + 1) : 0;
     lastStrike = now;
-    S.total++; S.days[today()] = (S.days[today()] || 0) + 1;
+    S.total++; S.days[today()] = (S.days[today()] || 0) + 1; queueSync();
     if (typeKey) { S.types[typeKey] = (S.types[typeKey] || 0) + 1; const dk = today(); S.dt[dk] = S.dt[dk] || {}; S.dt[dk][typeKey] = (S.dt[dk][typeKey] || 0) + 1; }
   }
   const crit = Math.random() < critChance();
@@ -908,6 +941,7 @@ function render() {
       if (u.max && l >= u.max) { b.textContent = 'MAXED'; b.disabled = true; } else { const c = cost(u, l); b.textContent = fmt(c) + ' G'; b.disabled = S.gold < c; } });
   }
   if (cur === 'stats') renderStats();
+  if (cur === 'ranks') renderRanks();
 }
 
 // ---------- stats + calendar ----------
@@ -972,6 +1006,86 @@ function loop(t) {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 window.addEventListener('pagehide', save);
+
+// ---------- online leaderboard (Supabase) ----------
+const SUPA_URL = 'https://iebjneasysxqejddpasz.supabase.co';   // e.g. https://abcd.supabase.co
+const SUPA_KEY = 'sb_publishable_AMPQ2fM8J7mCrhjyLSwJOQ_t64-RDFU';   // anon / publishable key (safe to be public)
+const lbOn = () => !!(SUPA_URL && SUPA_KEY);
+const PLAYER_KEY = KEY + '_player';
+let ME = { id: null, name: '' };
+try { Object.assign(ME, JSON.parse(localStorage.getItem(PLAYER_KEY)) || {}); } catch(e) {}
+if (!ME.id) ME.id = (crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now() + Math.random().toString(36).slice(2));
+const saveMe = () => { try { localStorage.setItem(PLAYER_KEY, JSON.stringify(ME)); } catch(e) {} };
+saveMe();
+let lbMode = 'week', lbRows = null, lbErr = '', lbLast = 0, syncTimer = null, lbSig = '';
+const supaHeaders = extra => Object.assign({ apikey: SUPA_KEY, 'Content-Type': 'application/json' },
+  SUPA_KEY.startsWith('sb_') ? {} : { Authorization: 'Bearer ' + SUPA_KEY }, extra || {});
+// camera-counted push-ups only (no dips, no tap strikes)
+function dayPushups(k) { const d = S.dt[k] || {}; return Math.max(0, (S.days[k] || 0) - (d.dips || 0) - (d.tap || 0)); }
+function myPayload() {
+  const days = {};
+  for (let i = 0; i < 40; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString('en-CA'); const n = dayPushups(k); if (n) days[k] = n; }
+  return { id: ME.id, name: ME.name, pushups: pushupTotal(), dips: S.types.dips || 0, stage: S.stage, days, updated_at: new Date().toISOString() };
+}
+function queueSync() { if (!lbOn() || !ME.name) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncMe, 4000); }
+async function syncMe() {
+  if (!lbOn() || !ME.name) return;
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/players?on_conflict=id', { method: 'POST',
+      headers: supaHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(myPayload()) });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 120));
+    lbErr = '';
+  } catch (e) { lbErr = 'Could not sync: ' + e.message; }
+}
+async function loadBoard() {
+  if (!lbOn()) return;
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/players?select=id,name,pushups,dips,stage,days,updated_at&limit=200', { headers: supaHeaders() });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 120));
+    lbRows = await r.json(); lbErr = ''; lbLast = Date.now();
+  } catch (e) { lbErr = 'Could not load leaderboard: ' + e.message; }
+  lbSig = ''; renderRanks();
+}
+function scoreOf(row, mode) {
+  const days = row.days || {};
+  if (mode === 'today') return days[today()] || 0;
+  if (mode === 'week') { let t = 0; for (let i = 0; i < 7; i++) t += days[new Date(Date.now() - i * 864e5).toLocaleDateString('en-CA')] || 0; return t; }
+  if (mode === 'all') return row.pushups || 0;
+  return row.stage || 1;
+}
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+function renderRanks() {
+  document.querySelectorAll('#lbTabs button').forEach(b => b.classList.toggle('on', b.dataset.m === lbMode));
+  if (!lbOn()) { $('lbSetup').style.display = 'none'; $('lbMain').style.display = '';
+    $('lbList').innerHTML = '<div class="lbmsg">The leaderboard isn\'t connected yet.</div>'; $('lbStatus').textContent = ''; $('lbMe').textContent = ''; return; }
+  $('lbSetup').style.display = ME.name ? 'none' : ''; $('lbMain').style.display = ME.name ? '' : 'none';
+  if (!ME.name) return;
+  const sig = JSON.stringify([lbMode, lbLast, lbErr, ME.name, S.total, S.stage, today()]);
+  if (sig === lbSig) return; lbSig = sig;
+  // merge my live numbers in so I see myself instantly
+  const rows = (lbRows || []).filter(r => r.id !== ME.id).concat([myPayload()]);
+  const scored = rows.map(r => ({ r, v: scoreOf(r, lbMode) })).sort((a, b) => b.v - a.v || (a.r.name || '').localeCompare(b.r.name || ''));
+  const unit = lbMode === 'stage' ? '' : ' push-ups';
+  $('lbList').innerHTML = lbRows == null && !lbErr ? '<div class="lbmsg">Loading…</div>' : scored.map((x, i) => {
+    const info = lbMode === 'stage' ? monsterInfo(x.v).world.name : (x.r.dips ? fmt(x.r.dips) + ' dips all time' : '');
+    return `<div class="lbrow r${i + 1}${x.r.id === ME.id ? ' me' : ''}"><span class="rk">#${i + 1}</span><span class="nm">${esc(x.r.name || '???')}${x.r.id === ME.id ? ' (you)' : ''}${info ? '<small>' + esc(info) + '</small>' : ''}</span><span class="sc">${lbMode === 'stage' ? 'Stage ' + x.v : fmt(x.v)}</span></div>`;
+  }).join('');
+  $('lbStatus').textContent = lbErr || (lbLast ? 'Updated ' + new Date(lbLast).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
+  $('lbStatus').style.color = lbErr ? 'var(--orange)' : '';
+  $('lbMe').textContent = 'Playing as ' + ME.name;
+}
+document.querySelectorAll('#lbTabs button').forEach(b => b.addEventListener('click', () => { lbMode = b.dataset.m; lbSig = ''; renderRanks(); }));
+$('lbRefresh').addEventListener('click', async () => { $('lbStatus').textContent = 'Refreshing…'; await syncMe(); loadBoard(); });
+$('nameBtn').addEventListener('click', async () => {
+  const n = $('nameIn').value.trim().slice(0, 16); if (!n) return;
+  ME.name = n; saveMe(); lbSig = ''; renderRanks(); await syncMe(); loadBoard();
+});
+$('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('nameBtn').click(); });
+$('lbRename').addEventListener('click', () => { $('nameIn').value = ME.name; ME.name = ''; saveMe(); lbSig = ''; renderRanks(); });
+document.querySelector('nav button[data-v=ranks]').addEventListener('click', () => { if (lbOn() && ME.name && Date.now() - lbLast > 15000) { syncMe().then(loadBoard); } });
+setInterval(() => { if (cur === 'ranks' && lbOn() && ME.name) loadBoard(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) syncMe(); });
+if (lbOn() && ME.name) syncMe();
 if (!window.isSecureContext || !navigator.mediaDevices) setStatus('Camera isn\'t available in this view. Open the game from its https:// link to use it.', 'warn');
 
 // test hook (used for automated checks; harmless)
